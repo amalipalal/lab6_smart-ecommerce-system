@@ -9,9 +9,13 @@ import com.example.ecommerce_system.exception.auth.UserNotFoundException;
 import com.example.ecommerce_system.exception.auth.WeakPasswordException;
 import com.example.ecommerce_system.model.Customer;
 import com.example.ecommerce_system.model.Role;
+import com.example.ecommerce_system.model.RoleType;
 import com.example.ecommerce_system.model.User;
+import com.example.ecommerce_system.repository.CustomerRepository;
+import com.example.ecommerce_system.repository.RoleRepository;
+import com.example.ecommerce_system.repository.UserRepository;
 import com.example.ecommerce_system.service.AuthService;
-import com.example.ecommerce_system.store.UserStore;
+import com.example.ecommerce_system.util.mapper.AuthMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,10 +35,19 @@ import static org.mockito.Mockito.*;
 class AuthServiceTest {
 
     @Mock
-    private UserStore userStore;
+    private UserRepository userRepository;
+
+    @Mock
+    private CustomerRepository customerRepository;
+
+    @Mock
+    private RoleRepository roleRepository;
 
     @Mock
     private BCryptPasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuthMapper authMapper;
 
     @InjectMocks
     private AuthService authService;
@@ -50,25 +63,52 @@ class AuthServiceTest {
                 "+233123456789"
         );
 
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
         User savedUser = User.builder()
                 .userId(UUID.randomUUID())
                 .email("admin@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(Instant.now())
                 .build();
 
-        when(userStore.getUserByEmail("admin@example.com")).thenReturn(Optional.empty());
+        Customer savedCustomer = Customer.builder()
+                .customerId(UUID.randomUUID())
+                .user(savedUser)
+                .firstName("John")
+                .lastName("Doe")
+                .phone("+233123456789")
+                .isActive(true)
+                .build();
+
+        AuthResponseDto authResponse = AuthResponseDto.builder()
+                .userId(savedUser.getUserId())
+                .email(savedUser.getEmail())
+                .roleName(RoleType.CUSTOMER)
+                .createdAt(savedUser.getCreatedAt())
+                .build();
+
+        when(userRepository.findUserByEmail("admin@example.com")).thenReturn(Optional.empty());
+        when(roleRepository.findRoleByRoleName(RoleType.CUSTOMER)).thenReturn(Optional.of(customerRole));
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
-        when(userStore.createUser(any(User.class), any(Customer.class))).thenReturn(savedUser);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        when(authMapper.toDTO(savedUser)).thenReturn(authResponse);
 
         AuthResponseDto response = authService.signup(request);
 
         Assertions.assertEquals("admin@example.com", response.getEmail());
-        Assertions.assertEquals(Role.CUSTOMER, response.getRole());
-        verify(userStore).getUserByEmail("admin@example.com");
+        Assertions.assertEquals(RoleType.CUSTOMER, response.getRoleName());
+        verify(userRepository).findUserByEmail("admin@example.com");
+        verify(roleRepository).findRoleByRoleName(RoleType.CUSTOMER);
         verify(passwordEncoder).encode("Password123!");
-        verify(userStore).createUser(any(User.class), any(Customer.class));
+        verify(userRepository).save(any(User.class));
+        verify(customerRepository).save(any(Customer.class));
+        verify(authMapper).toDTO(savedUser);
     }
 
     @Test
@@ -86,20 +126,21 @@ class AuthServiceTest {
                 .userId(UUID.randomUUID())
                 .email("existing@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(Role.builder().roleName(RoleType.CUSTOMER).build())
                 .createdAt(Instant.now())
                 .build();
 
-        when(userStore.getUserByEmail("existing@example.com")).thenReturn(Optional.of(existingUser));
+        when(userRepository.findUserByEmail("existing@example.com")).thenReturn(Optional.of(existingUser));
 
         Assertions.assertThrows(
                 DuplicateEmailException.class,
                 () -> authService.signup(request)
         );
 
-        verify(userStore).getUserByEmail("existing@example.com");
+        verify(userRepository).findUserByEmail("existing@example.com");
+        verify(roleRepository, never()).findRoleByRoleName(any());
         verify(passwordEncoder, never()).encode(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -118,8 +159,8 @@ class AuthServiceTest {
                 () -> authService.signup(request)
         );
 
-        verify(userStore, never()).getUserByEmail(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).findUserByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -138,8 +179,8 @@ class AuthServiceTest {
                 () -> authService.signup(request)
         );
 
-        verify(userStore, never()).getUserByEmail(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).findUserByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -158,8 +199,8 @@ class AuthServiceTest {
                 () -> authService.signup(request)
         );
 
-        verify(userStore, never()).getUserByEmail(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).findUserByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -178,8 +219,8 @@ class AuthServiceTest {
                 () -> authService.signup(request)
         );
 
-        verify(userStore, never()).getUserByEmail(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).findUserByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -198,8 +239,8 @@ class AuthServiceTest {
                 () -> authService.signup(request)
         );
 
-        verify(userStore, never()).getUserByEmail(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).findUserByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -218,8 +259,8 @@ class AuthServiceTest {
                 () -> authService.signup(request)
         );
 
-        verify(userStore, never()).getUserByEmail(any());
-        verify(userStore, never()).createUser(any(), any());
+        verify(userRepository, never()).findUserByEmail(any());
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -234,19 +275,28 @@ class AuthServiceTest {
                 .userId(UUID.randomUUID())
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(Role.builder().roleName(RoleType.CUSTOMER).build())
                 .createdAt(Instant.now())
                 .build();
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        AuthResponseDto authResponse = AuthResponseDto.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .roleName(RoleType.CUSTOMER)
+                .createdAt(user.getCreatedAt())
+                .build();
+
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Password123!", "hashedPassword")).thenReturn(true);
+        when(authMapper.toDTO(user)).thenReturn(authResponse);
 
         AuthResponseDto response = authService.login(request);
 
         Assertions.assertEquals("user@example.com", response.getEmail());
-        Assertions.assertEquals(Role.CUSTOMER, response.getRole());
-        verify(userStore).getUserByEmail("user@example.com");
+        Assertions.assertEquals(RoleType.CUSTOMER, response.getRoleName());
+        verify(userRepository).findUserByEmail("user@example.com");
         verify(passwordEncoder).matches("Password123!", "hashedPassword");
+        verify(authMapper).toDTO(user);
     }
 
     @Test
@@ -257,14 +307,14 @@ class AuthServiceTest {
                 "Password123!"
         );
 
-        when(userStore.getUserByEmail("nonexisting@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findUserByEmail("nonexisting@example.com")).thenReturn(Optional.empty());
 
         Assertions.assertThrows(
                 UserNotFoundException.class,
                 () -> authService.login(request)
         );
 
-        verify(userStore).getUserByEmail("nonexisting@example.com");
+        verify(userRepository).findUserByEmail("nonexisting@example.com");
         verify(passwordEncoder, never()).matches(any(), any());
     }
 
@@ -280,11 +330,11 @@ class AuthServiceTest {
                 .userId(UUID.randomUUID())
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(Role.builder().roleName(RoleType.CUSTOMER).build())
                 .createdAt(Instant.now())
                 .build();
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("WrongPassword123!", "hashedPassword")).thenReturn(false);
 
         Assertions.assertThrows(
@@ -292,7 +342,7 @@ class AuthServiceTest {
                 () -> authService.login(request)
         );
 
-        verify(userStore).getUserByEmail("user@example.com");
+        verify(userRepository).findUserByEmail("user@example.com");
         verify(passwordEncoder).matches("WrongPassword123!", "hashedPassword");
     }
 
@@ -307,24 +357,42 @@ class AuthServiceTest {
                 "+233789789789"
         );
 
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
         User savedUser = User.builder()
                 .userId(UUID.randomUUID())
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(Instant.now())
                 .build();
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        Customer savedCustomer = Customer.builder()
+                .customerId(UUID.randomUUID())
+                .user(savedUser)
+                .firstName("Lisa")
+                .lastName("Purple")
+                .phone("+233789789789")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(roleRepository.findRoleByRoleName(RoleType.CUSTOMER)).thenReturn(Optional.of(customerRole));
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
-        when(userStore.createUser(any(User.class), any(Customer.class))).thenReturn(savedUser);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
 
         authService.signup(request);
 
         verify(passwordEncoder).encode("Password123!");
-        verify(userStore).createUser(argThat(user ->
+        verify(roleRepository).findRoleByRoleName(RoleType.CUSTOMER);
+        verify(userRepository).save(argThat(user ->
                 user.getPasswordHash().equals("hashedPassword")
-        ), any(Customer.class));
+        ));
     }
 
     @Test
@@ -340,24 +408,49 @@ class AuthServiceTest {
 
         UUID userId = UUID.randomUUID();
         Instant createdAt = Instant.now();
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
         User savedUser = User.builder()
                 .userId(userId)
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(createdAt)
                 .build();
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        Customer savedCustomer = Customer.builder()
+                .customerId(UUID.randomUUID())
+                .user(savedUser)
+                .firstName("Mark")
+                .lastName("Orange")
+                .phone("+233321321321")
+                .isActive(true)
+                .build();
+
+        AuthResponseDto authResponse = AuthResponseDto.builder()
+                .userId(userId)
+                .email("user@example.com")
+                .roleName(RoleType.CUSTOMER)
+                .createdAt(createdAt)
+                .build();
+
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(roleRepository.findRoleByRoleName(RoleType.CUSTOMER)).thenReturn(Optional.of(customerRole));
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
-        when(userStore.createUser(any(User.class), any(Customer.class))).thenReturn(savedUser);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        when(authMapper.toDTO(savedUser)).thenReturn(authResponse);
 
         AuthResponseDto response = authService.signup(request);
 
         Assertions.assertEquals(userId, response.getUserId());
         Assertions.assertEquals("user@example.com", response.getEmail());
-        Assertions.assertEquals(Role.CUSTOMER, response.getRole());
+        Assertions.assertEquals(RoleType.CUSTOMER, response.getRoleName());
         Assertions.assertEquals(createdAt, response.getCreatedAt());
+        verify(roleRepository).findRoleByRoleName(RoleType.CUSTOMER);
     }
 
     @Test
@@ -370,22 +463,35 @@ class AuthServiceTest {
 
         UUID userId = UUID.randomUUID();
         Instant createdAt = Instant.now();
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
         User user = User.builder()
                 .userId(userId)
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(createdAt)
                 .build();
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.of(user));
+        AuthResponseDto authResponse = AuthResponseDto.builder()
+                .userId(userId)
+                .email("user@example.com")
+                .roleName(RoleType.CUSTOMER)
+                .createdAt(createdAt)
+                .build();
+
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Password123!", "hashedPassword")).thenReturn(true);
+        when(authMapper.toDTO(user)).thenReturn(authResponse);
 
         AuthResponseDto response = authService.login(request);
 
         Assertions.assertEquals(userId, response.getUserId());
         Assertions.assertEquals("user@example.com", response.getEmail());
-        Assertions.assertEquals(Role.CUSTOMER, response.getRole());
+        Assertions.assertEquals(RoleType.CUSTOMER, response.getRoleName());
         Assertions.assertEquals(createdAt, response.getCreatedAt());
     }
 
@@ -400,43 +506,82 @@ class AuthServiceTest {
                 "+233654654654"
         );
 
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
         User savedUser = User.builder()
                 .userId(UUID.randomUUID())
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(Instant.now())
                 .build();
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        Customer savedCustomer = Customer.builder()
+                .customerId(UUID.randomUUID())
+                .user(savedUser)
+                .firstName("Nina")
+                .lastName("Yellow")
+                .phone("+233654654654")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(roleRepository.findRoleByRoleName(RoleType.CUSTOMER)).thenReturn(Optional.of(customerRole));
         when(passwordEncoder.encode("ValidPass123!")).thenReturn("hashedPassword");
-        when(userStore.createUser(any(User.class), any(Customer.class))).thenReturn(savedUser);
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
 
         Assertions.assertDoesNotThrow(() -> authService.signup(request));
 
-        verify(userStore).createUser(any(User.class), any(Customer.class));
+        verify(userRepository).save(any(User.class));
+        verify(roleRepository).findRoleByRoleName(RoleType.CUSTOMER);
     }
 
     @Test
     @DisplayName("Should accept password with different special characters")
     void shouldAcceptPasswordWithDifferentSpecialCharacters() {
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
+        User savedUser = User.builder()
+                .userId(UUID.randomUUID())
+                .email("user@example.com")
+                .passwordHash("hashedPassword")
+                .role(customerRole)
+                .createdAt(Instant.now())
+                .build();
+
+        Customer savedCustomer = Customer.builder()
+                .customerId(UUID.randomUUID())
+                .user(savedUser)
+                .firstName("Test")
+                .lastName("User")
+                .phone("+233000000000")
+                .isActive(true)
+                .build();
+
         SignupRequestDto request1 = new SignupRequestDto("user1@example.com", "Password123@", "Paul", "Pink", "+233987987987");
         SignupRequestDto request2 = new SignupRequestDto("user2@example.com", "Password123#", "Rachel", "Brown", "+233147147147");
         SignupRequestDto request3 = new SignupRequestDto("user3@example.com", "Password123$", "Steve", "Cyan", "+233258258258");
 
-        when(userStore.getUserByEmail(any())).thenReturn(Optional.empty());
+        when(userRepository.findUserByEmail(any())).thenReturn(Optional.empty());
+        when(roleRepository.findRoleByRoleName(RoleType.CUSTOMER)).thenReturn(Optional.of(customerRole));
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
-        when(userStore.createUser(any(User.class), any(Customer.class))).thenReturn(User.builder()
-                .userId(UUID.randomUUID())
-                .email("user@example.com")
-                .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
-                .createdAt(Instant.now())
-                .build());
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
 
         Assertions.assertDoesNotThrow(() -> authService.signup(request1));
         Assertions.assertDoesNotThrow(() -> authService.signup(request2));
         Assertions.assertDoesNotThrow(() -> authService.signup(request3));
+
+        verify(roleRepository, times(3)).findRoleByRoleName(RoleType.CUSTOMER);
     }
 
     @Test
@@ -450,18 +595,38 @@ class AuthServiceTest {
                 "+233369369369"
         );
 
-        when(userStore.getUserByEmail("user@example.com")).thenReturn(Optional.empty());
-        when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
-        when(userStore.createUser(any(User.class), any(Customer.class))).thenReturn(User.builder()
+        Role customerRole = Role.builder()
+                .roleId(UUID.randomUUID())
+                .roleName(RoleType.CUSTOMER)
+                .build();
+
+        User savedUser = User.builder()
                 .userId(UUID.randomUUID())
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(Instant.now())
-                .build());
+                .build();
+
+        Customer savedCustomer = Customer.builder()
+                .customerId(UUID.randomUUID())
+                .user(savedUser)
+                .firstName("Victor")
+                .lastName("Magenta")
+                .phone("+233369369369")
+                .isActive(true)
+                .build();
+
+        when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
+        when(roleRepository.findRoleByRoleName(RoleType.CUSTOMER)).thenReturn(Optional.of(customerRole));
+        when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
+        when(userRepository.save(any(User.class))).thenReturn(savedUser);
+        when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
+        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
 
         authService.signup(request);
 
-        verify(userStore).createUser(argThat(user -> user.getUserId() != null), any(Customer.class));
+        verify(userRepository).save(argThat(user -> user.getUserId() != null));
+        verify(roleRepository).findRoleByRoleName(RoleType.CUSTOMER);
     }
 }

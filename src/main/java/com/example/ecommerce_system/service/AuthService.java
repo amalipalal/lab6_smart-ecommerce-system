@@ -9,11 +9,16 @@ import com.example.ecommerce_system.exception.auth.UserNotFoundException;
 import com.example.ecommerce_system.exception.auth.WeakPasswordException;
 import com.example.ecommerce_system.model.Customer;
 import com.example.ecommerce_system.model.Role;
+import com.example.ecommerce_system.model.RoleType;
 import com.example.ecommerce_system.model.User;
-import com.example.ecommerce_system.store.UserStore;
+import com.example.ecommerce_system.repository.CustomerRepository;
+import com.example.ecommerce_system.repository.RoleRepository;
+import com.example.ecommerce_system.repository.UserRepository;
+import com.example.ecommerce_system.util.mapper.AuthMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -23,47 +28,56 @@ import java.util.UUID;
 @Service
 public class AuthService {
 
-    private final UserStore userStore;
+    private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
+    private final RoleRepository roleRepository;
+
     private final BCryptPasswordEncoder passwordEncoder;
+    private final AuthMapper authMapper;
 
     /**
      * Register a new user with the provided credentials.
      * Validates password strength, checks for duplicate email, hashes the password, and persists the user.
      * Also creates a customer record for the new user.
      */
+    @Transactional
     public AuthResponseDto signup(SignupRequestDto request) {
         validatePassword(request.getPassword());
 
-        Optional<User> existingUser = userStore.getUserByEmail(request.getEmail());
+        Optional<User> existingUser = userRepository.findUserByEmail(request.getEmail());
         if (existingUser.isPresent())
             throw new DuplicateEmailException(request.getEmail());
 
         var newUser = createUser(request);
-        var newCustomer = createCustomer(request);
+        var newCustomer = createCustomer(request, newUser);
 
-        var createdUser = userStore.createUser(newUser, newCustomer);
-        return mapToAuthResponse(createdUser);
+        var createdUser = userRepository.save(newUser);
+        customerRepository.save(newCustomer);
+        return authMapper.toDTO(createdUser);
     }
 
     private User createUser(SignupRequestDto request) {
+        Role customerRole = roleRepository.findRoleByRoleName(RoleType.CUSTOMER)
+                .orElseThrow(() -> new IllegalStateException("Customer role not found"));
+
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         return User.builder()
                 .userId(UUID.randomUUID())
                 .email(request.getEmail())
                 .passwordHash(hashedPassword)
-                .role(Role.CUSTOMER)
+                .role(customerRole)
                 .createdAt(Instant.now())
                 .build();
     }
 
-    private Customer createCustomer(SignupRequestDto request) {
+    private Customer createCustomer(SignupRequestDto request, User user) {
         return Customer.builder()
                 .customerId(UUID.randomUUID())
+                .user(user)
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phone(request.getPhone())
                 .isActive(true)
-                .createdAt(Instant.now())
                 .build();
     }
 
@@ -72,14 +86,13 @@ public class AuthService {
      * Verifies credentials and returns user details if valid.
      */
     public AuthResponseDto login(LoginRequestDto request) {
-        User user = userStore.getUserByEmail(request.getEmail())
+        User user = userRepository.findUserByEmail(request.getEmail())
                 .orElseThrow(() -> new UserNotFoundException(request.getEmail()));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
             throw new InvalidCredentialsException();
-        }
 
-        return mapToAuthResponse(user);
+        return authMapper.toDTO(user);
     }
 
     private void validatePassword(String password) {
@@ -102,14 +115,5 @@ public class AuthService {
         if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>/?].*")) {
             throw new WeakPasswordException("Password must contain at least one special character.");
         }
-    }
-
-    private AuthResponseDto mapToAuthResponse(User user) {
-        return AuthResponseDto.builder()
-                .userId(user.getUserId())
-                .email(user.getEmail())
-                .role(user.getRole())
-                .createdAt(user.getCreatedAt())
-                .build();
     }
 }
