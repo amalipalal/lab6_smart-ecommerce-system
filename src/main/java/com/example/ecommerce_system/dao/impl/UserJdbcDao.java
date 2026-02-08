@@ -3,6 +3,7 @@ package com.example.ecommerce_system.dao.impl;
 import com.example.ecommerce_system.dao.interfaces.UserDao;
 import com.example.ecommerce_system.exception.DaoException;
 import com.example.ecommerce_system.model.Role;
+import com.example.ecommerce_system.model.RoleType;
 import com.example.ecommerce_system.model.User;
 import org.springframework.stereotype.Repository;
 
@@ -46,7 +47,7 @@ public class UserJdbcDao implements UserDao {
                 .userId(resultSet.getObject("user_id", UUID.class))
                 .email(resultSet.getString("email"))
                 .passwordHash(resultSet.getString("password_hash"))
-                .role(Role.valueOf(resultSet.getString("role").toUpperCase()))
+                .role(null)
                 .createdAt(resultSet.getTimestamp("created_at").toInstant())
                 .build();
     }
@@ -57,7 +58,7 @@ public class UserJdbcDao implements UserDao {
             ps.setObject(1, user.getUserId());
             ps.setString(2, user.getEmail());
             ps.setString(3, user.getPasswordHash());
-            ps.setString(4, user.getRole().name());
+            ps.setString(4, user.getRole().getRoleName().name());
             ps.setTimestamp(5, Timestamp.from(user.getCreatedAt()));
 
             ps.executeUpdate();
