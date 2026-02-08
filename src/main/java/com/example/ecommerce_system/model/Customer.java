@@ -31,5 +31,5 @@ public class Customer {
     private String phone;
 
     @Column(name = "is_active")
-    private boolean isActive;
+    private Boolean active;
 }
