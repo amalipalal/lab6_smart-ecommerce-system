@@ -86,8 +86,8 @@ public class ReviewService {
                 .customerId(customer.getCustomerId())
                 .firstName(customer.getFirstName())
                 .lastName(customer.getLastName())
-                .email(customer.getEmail())
-                .createdAt(customer.getCreatedAt())
+                .email(customer.getUser().getEmail())
+                .createdAt(customer.getUser().getCreatedAt())
                 .build();
     }
 

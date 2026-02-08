@@ -1,6 +1,6 @@
 package com.example.ecommerce_system.dto.auth;
 
-import com.example.ecommerce_system.model.Role;
+import com.example.ecommerce_system.model.RoleType;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,6 +16,6 @@ import java.util.UUID;
 public class AuthResponseDto {
     private UUID userId;
     private String email;
-    private Role role;
+    private RoleType roleName;
     private Instant createdAt;
 }

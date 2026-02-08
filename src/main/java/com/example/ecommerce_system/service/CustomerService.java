@@ -4,8 +4,10 @@ import com.example.ecommerce_system.dto.customer.CustomerRequestDto;
 import com.example.ecommerce_system.dto.customer.CustomerResponseDto;
 import com.example.ecommerce_system.exception.customer.CustomerNotFoundException;
 import com.example.ecommerce_system.model.Customer;
-import com.example.ecommerce_system.store.CustomerStore;
+import com.example.ecommerce_system.repository.CustomerRepository;
+import com.example.ecommerce_system.util.mapper.CustomerMapper;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,7 +17,8 @@ import java.util.UUID;
 @AllArgsConstructor
 public class CustomerService {
 
-    private final CustomerStore customerStore;
+    private final CustomerMapper customerMapper;
+    private final CustomerRepository customerRepository;
 
     /**
      * Retrieve a customer by id.
@@ -25,9 +28,9 @@ public class CustomerService {
      * when no customer is found.
      */
     public CustomerResponseDto getCustomer(UUID customerId) {
-        Customer customer = this.customerStore.getCustomer(customerId)
+        Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId.toString()));
-        return map(customer);
+        return customerMapper.toDTO(customer);
     }
 
     /**
@@ -36,8 +39,10 @@ public class CustomerService {
      * Delegates to {@link com.example.ecommerce_system.store.CustomerStore#getAllCustomers(int, int)}.
      */
     public List<CustomerResponseDto> getAllCustomers(int limit, int offset) {
-        List<Customer> customers = this.customerStore.getAllCustomers(limit, offset);
-        return customers.stream().map(this::map).toList();
+        List<Customer> customers = customerRepository
+                .findAll(PageRequest.of(offset, limit))
+                .getContent();
+        return customerMapper.toDTOList(customers);
     }
 
     /**
@@ -46,8 +51,10 @@ public class CustomerService {
      * Delegates to {@link com.example.ecommerce_system.store.CustomerStore#searchCustomers(String, int, int)}.
      */
     public List<CustomerResponseDto> searchCustomers(String query, int limit, int offset) {
-        List<Customer> customers = this.customerStore.searchCustomers(query, limit, offset);
-        return customers.stream().map(this::map).toList();
+        List<Customer> customers = customerRepository
+                .searchCustomersByName(query, PageRequest.of(offset, limit))
+                .getContent();
+        return customerMapper.toDTOList(customers);
     }
 
     /**
@@ -57,32 +64,19 @@ public class CustomerService {
      * delegates persistence to {@link com.example.ecommerce_system.store.CustomerStore#updateCustomer(com.example.ecommerce_system.model.Customer)}.
      */
     public CustomerResponseDto updateCustomer(UUID customerId, CustomerRequestDto request) {
-        Customer existing = this.customerStore.getCustomer(customerId)
+        Customer existing = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId.toString()));
 
         Customer updated = Customer.builder()
                 .customerId(existing.getCustomerId())
                 .firstName(existing.getFirstName())
                 .lastName(existing.getLastName())
-                .email(existing.getEmail())
+                .user(existing.getUser())
                 .phone(request.getPhone() != null ? request.getPhone() : existing.getPhone())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : existing.isActive())
-                .createdAt(existing.getCreatedAt())
                 .build();
 
-        this.customerStore.updateCustomer(updated);
-        return map(updated);
-    }
-
-    private CustomerResponseDto map(Customer customer) {
-        return CustomerResponseDto.builder()
-                .customerId(customer.getCustomerId())
-                .firstName(customer.getFirstName())
-                .lastName(customer.getLastName())
-                .email(customer.getEmail())
-                .phone(customer.getPhone())
-                .isActive(customer.isActive())
-                .createdAt(customer.getCreatedAt())
-                .build();
+        customerRepository.save(updated);
+        return customerMapper.toDTO(updated);
     }
 }

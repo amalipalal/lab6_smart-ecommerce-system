@@ -81,11 +81,10 @@ public class CustomerJdbcDao implements CustomerDao {
     private Customer map(ResultSet resultSet) throws SQLException {
         return new Customer(
                 resultSet.getObject("customer_id", UUID.class),
+                null,
                 resultSet.getString("first_name"),
                 resultSet.getString("last_name"),
-                resultSet.getString("email"),
                 resultSet.getString("phone"),
-                resultSet.getTimestamp("created_at").toInstant(),
                 resultSet.getBoolean("is_active")
         );
     }

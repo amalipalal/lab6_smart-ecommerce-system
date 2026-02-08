@@ -1,19 +1,33 @@
 package com.example.ecommerce_system.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.experimental.SuperBuilder;
+import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;
 
-@AllArgsConstructor
+@Entity
+@Table(name = "users")
 @Getter
-@SuperBuilder
+@Setter
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
 public class User {
+    @Id
+    @Column(name = "user_id")
     private UUID userId;
+
+    @Column(name = "email")
     private String email;
+
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @ManyToOne
+    @JoinColumn(name = "role_id", nullable = false)
     private Role role;
+
+    @Column(name = "created_at")
     private Instant createdAt;
 }
