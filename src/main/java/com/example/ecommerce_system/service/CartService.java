@@ -8,9 +8,13 @@ import com.example.ecommerce_system.exception.customer.CustomerNotFoundException
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
 import com.example.ecommerce_system.model.Cart;
 import com.example.ecommerce_system.model.CartItem;
-import com.example.ecommerce_system.store.CartStore;
-import com.example.ecommerce_system.store.CustomerStore;
-import com.example.ecommerce_system.store.ProductStore;
+import com.example.ecommerce_system.model.Customer;
+import com.example.ecommerce_system.model.Product;
+import com.example.ecommerce_system.repository.CartItemRepository;
+import com.example.ecommerce_system.repository.CartRepository;
+import com.example.ecommerce_system.repository.CustomerRepository;
+import com.example.ecommerce_system.repository.ProductRepository;
+import com.example.ecommerce_system.util.mapper.CartItemMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -22,66 +26,63 @@ import java.util.UUID;
 @Service
 @AllArgsConstructor
 public class CartService {
+    private final CartRepository cartRepository;
+    private final CartItemRepository cartItemRepository;
+    private final CustomerRepository customerRepository;
+    private final ProductRepository productRepository;
 
-    private final CartStore cartStore;
-    private final CustomerStore customerStore;
-    private final ProductStore productStore;
-    private final ProductService productService;
+    private final CartItemMapper cartItemMapper;
 
     /**
      * Add a product to a customer's cart.
      * Creates a cart if the customer doesn't have one yet. Validates customer and product existence.
      */
     public CartItemResponseDto addToCart(UUID customerId, CartItemRequestDto request) {
-        checkThatCustomerExists(customerId);
+        retrieveCustomerFromRepository(customerId);
 
-        checkThatProductExists(request.getProductId());
+        var product = retrieveProductFromRepository(request.getProductId());
 
-        Cart cart = getOrCreateCartForCustomer(customerId);
+        var cart = getOrCreateCartForCustomer(customerId);
 
         CartItem cartItem = CartItem.builder()
                 .cartItemId(UUID.randomUUID())
-                .cartId(cart.getCartId())
-                .productId(request.getProductId())
+                .cart(cart)
+                .product(product)
                 .quantity(request.getQuantity())
                 .addedAt(Instant.now())
                 .build();
 
-        this.cartStore.addCartItem(cartItem);
-        return mapToDto(cartItem);
+        cart.getCartItems().add(cartItem);
+        cartRepository.save(cart);
+        return cartItemMapper.toDTO(cartItem);
     }
 
-    private void checkThatProductExists(UUID productId) {
-        productStore.getProduct(productId).orElseThrow(
+    private Customer retrieveCustomerFromRepository(UUID customerId) {
+        return customerRepository.findById(customerId).orElseThrow(
+                () -> new CustomerNotFoundException(customerId.toString())
+        );
+    }
+
+    private Product retrieveProductFromRepository(UUID productId) {
+        return productRepository.findById(productId).orElseThrow(
                 () -> new ProductNotFoundException(productId.toString())
         );
     }
 
     private Cart getOrCreateCartForCustomer(UUID customerId) {
-        Optional<Cart> existingCart = this.cartStore.getCartByCustomerId(customerId);
-
+        Optional<Cart> existingCart = cartRepository.findCartByCustomer_CustomerId(customerId);
         if (existingCart.isPresent()) return existingCart.get();
+
+        var customer = retrieveCustomerFromRepository(customerId);
 
         Cart newCart = Cart.builder()
                 .cartId(UUID.randomUUID())
-                .customerId(customerId)
+                .customer(customer)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
 
-        return this.cartStore.createCart(newCart);
-    }
-
-    private CartItemResponseDto mapToDto(CartItem cartItem) {
-        var product = this.productService.getProduct(cartItem.getProductId());
-
-        return CartItemResponseDto.builder()
-                .cartItemId(cartItem.getCartItemId())
-                .cartId(cartItem.getCartId())
-                .product(product)
-                .quantity(cartItem.getQuantity())
-                .addedAt(cartItem.getAddedAt())
-                .build();
+        return cartRepository.save(newCart);
     }
 
     /**
@@ -89,20 +90,14 @@ public class CartService {
      * Validates that the cart item exists and belongs to the customer before removal.
      */
     public void removeFromCart(UUID customerId, UUID cartItemId) {
-        checkThatCustomerExists(customerId);
+        retrieveCustomerFromRepository(customerId);
 
-        CartItem cartItem = cartStore.getCartItem(cartItemId)
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new CartItemNotFoundException(cartItemId.toString()));
 
         checkCartItemAuthorization(customerId, cartItem);
 
-        cartStore.removeCartItem(cartItemId);
-    }
-
-    private void checkThatCustomerExists(UUID customerId) {
-        customerStore.getCustomer(customerId).orElseThrow(
-                () -> new CustomerNotFoundException(customerId.toString())
-        );
+        cartItemRepository.deleteById(cartItemId);
     }
 
     /**
@@ -110,29 +105,30 @@ public class CartService {
      * Validates that the cart item exists and belongs to the customer. Returns the updated cart item with full product details.
      */
     public CartItemResponseDto updateCartItem(UUID customerId, UUID cartItemId, CartItemRequestDto request) {
-        checkThatCustomerExists(customerId);
+        retrieveCustomerFromRepository(customerId);
 
-        CartItem cartItem = cartStore.getCartItem(cartItemId)
+        CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new CartItemNotFoundException(cartItemId.toString()));
 
         checkCartItemAuthorization(customerId, cartItem);
 
-        cartStore.updateCartItem(cartItemId, request.getQuantity());
-        return getUpdatedCartItem(cartItemId);
+        CartItem updated = CartItem.builder()
+                .cartItemId(cartItem.getCartItemId())
+                .cart(cartItem.getCart())
+                .product(cartItem.getProduct())
+                .quantity(request.getQuantity())
+                .addedAt(cartItem.getAddedAt())
+                .build();
+
+        cartItemRepository.save(updated);
+        return cartItemMapper.toDTO(updated);
     }
 
     private void checkCartItemAuthorization(UUID customerId, CartItem cartItem) {
-        Optional<Cart> cartOpt = cartStore.getCartByCustomerId(customerId);
-        if (cartOpt.isEmpty() || !cartItem.getCartId().equals(cartOpt.get().getCartId())) {
+        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customerId);
+        if (cartOpt.isEmpty() || !cartItem.getCart().getCartId().equals(cartOpt.get().getCartId())) {
             throw new CartItemAuthorizationException(cartItem.getCartItemId().toString());
         }
-    }
-
-    private CartItemResponseDto getUpdatedCartItem(UUID cartItemId) {
-        CartItem cartItem = this.cartStore.getCartItem(cartItemId)
-                .orElseThrow(() -> new RuntimeException("Cart item not found after update: " + cartItemId));
-
-        return mapToDto(cartItem);
     }
 
     /**
@@ -140,16 +136,14 @@ public class CartService {
      * Returns an empty list if the customer has no cart. Each cart item includes full product details.
      */
     public List<CartItemResponseDto> getCartItemsByCustomer(UUID customerId) {
-        checkThatCustomerExists(customerId);
+        retrieveCustomerFromRepository(customerId);
 
-        Optional<Cart> cartOpt = this.cartStore.getCartByCustomerId(customerId);
+        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customerId);
 
         if (cartOpt.isEmpty()) return List.of();
 
-        List<CartItem> cartItems = this.cartStore.getCartItems(cartOpt.get().getCartId());
+        List<CartItem> cartItems = cartOpt.get().getCartItems();
 
-        return cartItems.stream()
-                .map(this::mapToDto)
-                .toList();
+        return cartItemMapper.toDTOList(cartItems);
     }
 }
