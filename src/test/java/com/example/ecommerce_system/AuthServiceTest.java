@@ -82,7 +82,7 @@ class AuthServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         AuthResponseDto authResponse = AuthResponseDto.builder()
@@ -376,7 +376,7 @@ class AuthServiceTest {
                 .firstName("Lisa")
                 .lastName("Purple")
                 .phone("+233789789789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
@@ -427,7 +427,7 @@ class AuthServiceTest {
                 .firstName("Mark")
                 .lastName("Orange")
                 .phone("+233321321321")
-                .isActive(true)
+                .active(true)
                 .build();
 
         AuthResponseDto authResponse = AuthResponseDto.builder()
@@ -525,7 +525,7 @@ class AuthServiceTest {
                 .firstName("Nina")
                 .lastName("Yellow")
                 .phone("+233654654654")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());
@@ -563,7 +563,7 @@ class AuthServiceTest {
                 .firstName("Test")
                 .lastName("User")
                 .phone("+233000000000")
-                .isActive(true)
+                .active(true)
                 .build();
 
         SignupRequestDto request1 = new SignupRequestDto("user1@example.com", "Password123@", "Paul", "Pink", "+233987987987");
@@ -614,7 +614,7 @@ class AuthServiceTest {
                 .firstName("Victor")
                 .lastName("Magenta")
                 .phone("+233369369369")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.empty());

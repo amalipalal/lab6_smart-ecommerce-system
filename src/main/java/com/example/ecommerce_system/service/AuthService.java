@@ -77,7 +77,7 @@ public class AuthService {
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phone(request.getPhone())
-                .isActive(true)
+                .active(true)
                 .build();
     }
 
