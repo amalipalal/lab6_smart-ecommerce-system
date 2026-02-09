@@ -14,5 +14,5 @@ public class CustomerRequestDto {
     )
     private String phone;
 
-    private Boolean isActive;
+    private Boolean active;
 }
