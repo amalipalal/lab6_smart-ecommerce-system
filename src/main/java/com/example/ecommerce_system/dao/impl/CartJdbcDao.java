@@ -71,7 +71,8 @@ public class CartJdbcDao implements CartDao {
     private Cart mapRowToCart(ResultSet rs) throws SQLException {
         return new Cart(
                 rs.getObject("cart_id", UUID.class),
-                rs.getObject("customer_id", UUID.class),
+                null,
+                null,
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant()
         );
@@ -81,7 +82,7 @@ public class CartJdbcDao implements CartDao {
     public void save(Connection conn, Cart cart) throws DaoException {
         try (PreparedStatement ps = conn.prepareStatement(SAVE_CART)) {
             ps.setObject(1, cart.getCartId());
-            ps.setObject(2, cart.getCustomerId());
+            ps.setObject(2, cart.getCustomer().getCustomerId());
             ps.setTimestamp(3, Timestamp.from(cart.getCreatedAt()));
             ps.setTimestamp(4, Timestamp.from(cart.getUpdatedAt()));
             ps.executeUpdate();
@@ -94,8 +95,8 @@ public class CartJdbcDao implements CartDao {
     public void addItem(Connection conn, CartItem item) throws DaoException {
         try (PreparedStatement ps = conn.prepareStatement(ADD_ITEM)) {
             ps.setObject(1, item.getCartItemId());
-            ps.setObject(2, item.getCartId());
-            ps.setObject(3, item.getProductId());
+            ps.setObject(2, item.getCart().getCartId());
+            ps.setObject(3, item.getProduct().getProductId());
             ps.setInt(4, item.getQuantity());
             ps.setTimestamp(5, Timestamp.from(item.getAddedAt()));
             ps.executeUpdate();
@@ -134,8 +135,8 @@ public class CartJdbcDao implements CartDao {
     private CartItem mapRowToCartItem(ResultSet rs) throws SQLException {
         return new CartItem(
                 rs.getObject("cart_item_id", UUID.class),
-                rs.getObject("cart_id", UUID.class),
-                rs.getObject("product_id", UUID.class),
+                null,
+                null,
                 rs.getInt("quantity"),
                 rs.getTimestamp("added_at").toInstant()
         );

@@ -91,7 +91,7 @@ public class CartStore {
                 conn.commit();
 
                 cartItem.ifPresent(item ->
-                    evictCartCache(item.getCartId())
+                    evictCartCache(item.getCart().getCartId())
                 );
             } catch (DaoException e) {
                 try { conn.rollback(); } catch (SQLException ignored) {}
@@ -125,7 +125,7 @@ public class CartStore {
                 conn.commit();
 
                 cartItem.ifPresent(item ->
-                    evictCartCache(item.getCartId())
+                    evictCartCache(item.getCart().getCartId())
                 );
             } catch (DaoException e) {
                 try { conn.rollback(); } catch (SQLException ignored) {}
