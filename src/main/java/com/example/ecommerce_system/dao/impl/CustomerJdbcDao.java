@@ -135,7 +135,7 @@ public class CustomerJdbcDao implements CustomerDao {
             ps.setString(1, customer.getFirstName());
             ps.setString(2, customer.getLastName());
             ps.setString(3, customer.getPhone());
-            ps.setBoolean(4, customer.isActive());
+            ps.setBoolean(4, customer.getActive());
             ps.setObject(5, customer.getCustomerId());
             ps.executeUpdate();
         } catch (SQLException e) {
