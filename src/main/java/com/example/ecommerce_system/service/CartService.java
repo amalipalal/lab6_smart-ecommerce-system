@@ -14,8 +14,11 @@ import com.example.ecommerce_system.repository.CartItemRepository;
 import com.example.ecommerce_system.repository.CartRepository;
 import com.example.ecommerce_system.repository.CustomerRepository;
 import com.example.ecommerce_system.repository.ProductRepository;
+import com.example.ecommerce_system.util.CartItemSpecification;
 import com.example.ecommerce_system.util.mapper.CartItemMapper;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -143,6 +146,26 @@ public class CartService {
         if (cartOpt.isEmpty()) return List.of();
 
         List<CartItem> cartItems = cartOpt.get().getCartItems();
+
+        return cartItemMapper.toDTOList(cartItems);
+    }
+
+    /**
+     * Search through a customer's cart items by product name or description with pagination.
+     * Returns an empty list if the customer has no cart or no items match the search term.
+     */
+    public List<CartItemResponseDto> searchCartItems(UUID customerId, String searchTerm, int limit, int offset) {
+        retrieveCustomerFromRepository(customerId);
+
+        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customerId);
+
+        if (cartOpt.isEmpty()) return List.of();
+
+        UUID cartId = cartOpt.get().getCartId();
+        Specification<CartItem> spec = CartItemSpecification.searchByProductNameOrDescription(cartId, searchTerm);
+        PageRequest pageRequest = PageRequest.of(offset / limit, limit);
+
+        List<CartItem> cartItems = cartItemRepository.findAll(spec, pageRequest).getContent();
 
         return cartItemMapper.toDTOList(cartItems);
     }
