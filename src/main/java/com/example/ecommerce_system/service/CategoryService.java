@@ -7,7 +7,10 @@ import com.example.ecommerce_system.exception.category.DuplicateCategoryExceptio
 import com.example.ecommerce_system.model.Category;
 import com.example.ecommerce_system.repository.CategoryRepository;
 import com.example.ecommerce_system.store.CategoryStore;
+import com.example.ecommerce_system.util.mapper.CategoryMapper;
 import lombok.AllArgsConstructor;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +23,7 @@ import java.util.UUID;
 @Service
 public class CategoryService {
 
+    private final CategoryMapper mapper;
     private final CategoryRepository categoryRepository;
 
     /**
@@ -37,7 +41,7 @@ public class CategoryService {
                 Instant.now()
         );
         Category saved = categoryRepository.save(category);
-        return map(saved);
+        return mapper.toDTO(saved);
     }
 
     private CategoryResponseDto map(Category category) {
@@ -69,32 +73,44 @@ public class CategoryService {
                 Instant.now()
         );
         Category saved = categoryRepository.save(updated);
-        return map(saved);
+        return mapper.toDTO(saved);
     }
 
     public CategoryResponseDto getCategory(UUID id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException(id.toString()));
-        return map(category);
+        return mapper.toDTO(category);
     }
 
     public CategoryResponseDto getCategory(String name) {
         Category category = categoryRepository.findCategoryByName(name)
                 .orElseThrow(() -> new CategoryNotFoundException(name));
-        return map(category);
+        return mapper.toDTO(category);
     }
 
+    /**
+     * Search for a category with name or description containing query.
+     */
     public List<CategoryResponseDto> getCategories(String query, int limit, int offset) {
-        List<Category> categories = categoryRepository.findCategoriesByNameContainingIgnoreCase(
-                query,
+        Category probe = new Category();
+        probe.setName(query);
+        probe.setDescription(query);
+
+        ExampleMatcher matcher = ExampleMatcher.matching()
+                .withIgnoreNullValues()
+                .withIgnoreCase()
+                .withStringMatcher(ExampleMatcher.StringMatcher.CONTAINING);
+
+        List<Category> categories = categoryRepository.findAll(
+                Example.of(probe, matcher),
                 PageRequest.of(offset, limit)
-        );
-        return categories.stream().map(this::map).toList();
+        ).getContent();
+        return mapper.toDTOList(categories);
     }
 
     public List<CategoryResponseDto> getAllCategories(int limit, int offset) {
         List<Category> categories = categoryRepository.findAll(PageRequest.of(offset, limit)).getContent();
-        return categories.stream().map(this::map).toList();
+        return mapper.toDTOList(categories);
     }
 
     /**
