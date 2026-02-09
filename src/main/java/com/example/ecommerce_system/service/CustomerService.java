@@ -73,7 +73,7 @@ public class CustomerService {
                 .lastName(existing.getLastName())
                 .user(existing.getUser())
                 .phone(request.getPhone() != null ? request.getPhone() : existing.getPhone())
-                .isActive(request.getIsActive() != null ? request.getIsActive() : existing.isActive())
+                .active(request.getActive() != null ? request.getActive() : existing.getActive())
                 .build();
 
         customerRepository.save(updated);

@@ -52,7 +52,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(customer));
@@ -92,7 +92,7 @@ class CustomerServiceTest {
                         .firstName("John")
                         .lastName("Doe")
                         .phone("+233123456789")
-                        .isActive(true)
+                        .active(true)
                         .build(),
                 Customer.builder()
                         .customerId(UUID.randomUUID())
@@ -100,7 +100,7 @@ class CustomerServiceTest {
                         .firstName("Jane")
                         .lastName("Smith")
                         .phone("+233987654321")
-                        .isActive(true)
+                        .active(true)
                         .build()
         );
 
@@ -127,7 +127,7 @@ class CustomerServiceTest {
                         .firstName("John")
                         .lastName("Doe")
                         .phone("+233123456789")
-                        .isActive(true)
+                        .active(true)
                         .build()
         );
 
@@ -168,7 +168,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -178,7 +178,7 @@ class CustomerServiceTest {
         verify(customerRepository).findById(id);
         verify(customerRepository).save(argThat(customer ->
                 customer.getPhone().equals("+233111222333") &&
-                        customer.isActive()
+                        customer.getActive()
         ));
     }
 
@@ -195,7 +195,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -205,7 +205,7 @@ class CustomerServiceTest {
         verify(customerRepository).findById(id);
         verify(customerRepository).save(argThat(customer ->
                 customer.getPhone().equals("+233123456789") &&
-                        !customer.isActive()
+                        !customer.getActive()
         ));
     }
 
@@ -222,7 +222,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -232,7 +232,7 @@ class CustomerServiceTest {
         verify(customerRepository).findById(id);
         verify(customerRepository).save(argThat(customer ->
                 customer.getPhone().equals("+233999888777") &&
-                        !customer.isActive()
+                        !customer.getActive()
         ));
     }
 
@@ -266,7 +266,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -276,7 +276,7 @@ class CustomerServiceTest {
         verify(customerRepository).save(argThat(customer ->
                 customer.getFirstName().equals("John") &&
                         customer.getLastName().equals("Doe") &&
-                        customer.isActive()
+                        customer.getActive()
         ));
     }
 
@@ -293,7 +293,7 @@ class CustomerServiceTest {
                 .firstName("Jane")
                 .lastName("Smith")
                 .phone("+233987654321")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -319,7 +319,7 @@ class CustomerServiceTest {
                         .firstName("Customer1")
                         .lastName("Last1")
                         .phone("+233123456789")
-                        .isActive(true)
+                        .active(true)
                         .build(),
                 Customer.builder()
                         .customerId(UUID.randomUUID())
@@ -327,7 +327,7 @@ class CustomerServiceTest {
                         .firstName("Customer2")
                         .lastName("Last2")
                         .phone("+233987654321")
-                        .isActive(true)
+                        .active(true)
                         .build()
         );
 
@@ -352,7 +352,7 @@ class CustomerServiceTest {
                         .firstName("Customer1")
                         .lastName("Last1")
                         .phone("+233123456789")
-                        .isActive(true)
+                        .active(true)
                         .build()
         );
 
@@ -378,7 +378,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
@@ -402,7 +402,7 @@ class CustomerServiceTest {
                 .firstName("John")
                 .lastName("Doe")
                 .phone("+233123456789")
-                .isActive(true)
+                .active(true)
                 .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(customer));
@@ -414,7 +414,7 @@ class CustomerServiceTest {
         Assertions.assertEquals("Doe", response.getLastName());
         Assertions.assertEquals("john@example.com", response.getEmail());
         Assertions.assertEquals("+233123456789", response.getPhone());
-        Assertions.assertTrue(response.isActive());
+        Assertions.assertTrue(response.getActive());
         Assertions.assertEquals(createdAt, response.getCreatedAt());
     }
 }

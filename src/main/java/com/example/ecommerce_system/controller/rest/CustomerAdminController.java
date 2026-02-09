@@ -74,7 +74,7 @@ public class CustomerAdminController {
             @PathVariable UUID id,
             @RequestBody @Valid CustomerRequestDto update
     ) {
-        if (update.getPhone() == null && update.getIsActive() == null) {
+        if (update.getPhone() == null && update.getActive() == null) {
             throw new IllegalArgumentException("At least one field (phone or isActive) must be provided for update");
         }
 
