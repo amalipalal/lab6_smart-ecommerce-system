@@ -13,10 +13,8 @@ import java.util.UUID;
 @Repository
 public interface OrderRepository extends JpaRepository<Orders, UUID> {
 
-    List<Orders> findByCustomer_CustomerId(UUID customerId);
-
     List<Orders> findAllByCustomer_CustomerId(UUID customerId, Pageable pageable);
 
-    @Query("SELECT COUNT(o) > 0 FROM Orders o JOIN o.orderItems oi WHERE o.customer.customerId = :customerId AND oi.product.productId = :productId AND o.status = 'PROCESSED'")
+    @Query("SELECT COUNT(o) > 0 FROM Orders o JOIN o.orderItems oi WHERE o.customer.customerId = :customerId AND oi.product.productId = :productId AND o.status.statusName = 'PROCESSED'")
     boolean hasProcessedOrderWithProduct(@Param("customerId") UUID customerId, @Param("productId") UUID productId);
 }
