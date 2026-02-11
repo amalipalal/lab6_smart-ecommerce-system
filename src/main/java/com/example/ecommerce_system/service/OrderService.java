@@ -44,10 +44,7 @@ public class OrderService {
      */
     @Transactional
     public OrderResponseDto placeOrder(OrderRequestDto request, UUID userId) {
-        var customer = customerRepository
-                .findCustomerByUser_UserId(userId)
-                .orElseThrow(() -> new CustomerNotFoundException(userId.toString()));
-
+        var customer = checkIfCustomerExists(userId);
         var orderId = UUID.randomUUID();
 
         var status = orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PENDING)
@@ -61,13 +58,23 @@ public class OrderService {
         Orders newOrder = createOrder(orderId, request, customer, totalAmount, status);
         Orders savedOrder = orderRepository.save(newOrder);
 
+        saveOrderItems(savedOrder, items);
+        return orderMapper.toDto(savedOrder);
+    }
+
+    private void saveOrderItems(Orders savedOrder, List<OrderItem> items) {
         for (OrderItem item : items) {
             item.setOrder(savedOrder);
             orderItemRepository.save(item);
         }
 
         savedOrder.setOrderItems(items);
-        return orderMapper.toDto(savedOrder);
+    }
+
+    private Customer checkIfCustomerExists(UUID userId) {
+        return customerRepository
+                .findCustomerByUser_UserId(userId)
+                .orElseThrow(() -> new CustomerNotFoundException(userId.toString()));
     }
 
     private List<OrderItem> validateOrderItems(List<OrderItemDto> orderedItems) {
