@@ -4,6 +4,7 @@ import com.example.ecommerce_system.dto.orders.CreateOrderRequest;
 import com.example.ecommerce_system.dto.orders.OrderRequestDto;
 import com.example.ecommerce_system.dto.orders.OrderResponseDto;
 import com.example.ecommerce_system.service.OrderService;
+import com.example.ecommerce_system.util.RequestContextUtil;
 import lombok.AllArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -21,11 +22,10 @@ public class OrderGraphQLController {
 
     @QueryMapping
     public List<OrderResponseDto> getCustomerOrders(
-            @Argument String userId,
             @Argument(name = "limit") Integer limit,
             @Argument(name = "offset") Integer offset) {
 
-        UUID userUuid = UUID.fromString(userId);
+        UUID userUuid = UUID.fromString(RequestContextUtil.getUserId());
         int limitValue = limit != null ? limit : 10;
         int offsetValue = offset != null ? offset : 0;
 
@@ -34,10 +34,8 @@ public class OrderGraphQLController {
 
     @MutationMapping
     public OrderResponseDto placeOrder(
-            @Argument String userId,
             @Argument @Validated(CreateOrderRequest.class) OrderRequestDto input) {
-
-        UUID userUuid = UUID.fromString(userId);
+        UUID userUuid = UUID.fromString(RequestContextUtil.getUserId());
         return orderService.placeOrder(input, userUuid);
     }
 }

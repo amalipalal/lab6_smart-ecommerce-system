@@ -5,6 +5,7 @@ import com.example.ecommerce_system.dto.cart.CartItemRequestDto;
 import com.example.ecommerce_system.dto.cart.CartItemResponseDto;
 import com.example.ecommerce_system.dto.cart.UpdateCartItem;
 import com.example.ecommerce_system.service.CartService;
+import com.example.ecommerce_system.util.RequestContextUtil;
 import lombok.AllArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -21,34 +22,30 @@ public class CartGraphQLController {
     private final CartService cartService;
 
     @QueryMapping
-    public List<CartItemResponseDto> getCustomerCartItems(@Argument String userId) {
-        UUID userUuid = UUID.fromString(userId);
+    public List<CartItemResponseDto> getCustomerCartItems() {
+        UUID userUuid = UUID.fromString(RequestContextUtil.getUserId());
         return cartService.getCartItemsByCustomer(userUuid);
     }
 
     @MutationMapping
     public CartItemResponseDto addCartItem(
-            @Argument String userId,
             @Argument @Validated(AddCartItem.class) CartItemRequestDto request) {
-        UUID userUuid = UUID.fromString(userId);
+        UUID userUuid = UUID.fromString(RequestContextUtil.getUserId());
         return cartService.addToCart(userUuid, request);
     }
 
     @MutationMapping
     public CartItemResponseDto updateCartItem(
-            @Argument String userId,
             @Argument String cartItemId,
             @Argument @Validated(UpdateCartItem.class) CartItemRequestDto request) {
-        UUID userUuid = UUID.fromString(userId);
+        UUID userUuid = UUID.fromString(RequestContextUtil.getUserId());
         UUID cartItemUuid = UUID.fromString(cartItemId);
         return cartService.updateCartItem(userUuid, cartItemUuid, request);
     }
 
     @MutationMapping
-    public Boolean removeFromCart(
-            @Argument String userId,
-            @Argument String cartItemId) {
-        UUID userUuid = UUID.fromString(userId);
+    public Boolean removeFromCart(@Argument String cartItemId) {
+        UUID userUuid = UUID.fromString(RequestContextUtil.getUserId());
         UUID cartItemUuid = UUID.fromString(cartItemId);
         cartService.removeFromCart(userUuid, cartItemUuid);
         return true;
