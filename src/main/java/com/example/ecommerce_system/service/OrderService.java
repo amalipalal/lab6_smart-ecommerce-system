@@ -182,32 +182,21 @@ public class OrderService {
             productRepository.save(product);
         }
 
-        Orders processedOrder = buildOrderWithNewStatus(existingOrder, PROCESSED);
-        return orderRepository.save(processedOrder);
+        var status = retrieveOrderStatus(PROCESSED);
+        existingOrder.setStatus(status);
+        return orderRepository.save(existingOrder);
     }
 
     private Orders cancelOrder(Orders existingOrder) {
         if (existingOrder.getStatus().getStatusName() != OrderStatusType.PENDING)
             throw new InvalidOrderCancellationException("Only pending orders can be cancelled");
 
-        Orders cancelledOrder = buildOrderWithNewStatus(existingOrder, CANCELLED);
-        return orderRepository.save(cancelledOrder);
+        var status = retrieveOrderStatus(CANCELLED);
+        existingOrder.setStatus(status);
+        return orderRepository.save(existingOrder);
     }
 
-    private Orders buildOrderWithNewStatus(Orders existingOrder, OrderStatusType newStatus) {
-        var status = orderStatusRepository.findOrderStatusByStatusName(newStatus)
-                .orElseThrow(() -> new OrderStatusConfigurationException(newStatus.name()));
-
-        return Orders.builder()
-                .orderId(existingOrder.getOrderId())
-                .customer(existingOrder.getCustomer())
-                .orderDate(existingOrder.getOrderDate())
-                .orderItems(existingOrder.getOrderItems())
-                .totalAmount(existingOrder.getTotalAmount())
-                .shippingCountry(existingOrder.getShippingCountry())
-                .shippingCity(existingOrder.getShippingCity())
-                .shippingPostalCode(existingOrder.getShippingPostalCode())
-                .status(status)
-                .build();
+    private OrderStatus retrieveOrderStatus(OrderStatusType type) {
+        return orderStatusRepository.findOrderStatusByStatusName(type).orElseThrow();
     }
 }
