@@ -34,19 +34,19 @@ public class ReviewService {
      * Create a new review for a product.
      * Validates that the product exists, the customer exists, and the customer has ordered and received (PROCESSED status) the product.
      */
-    public ReviewResponseDto createReview(UUID productId, UUID customerId, ReviewRequestDto request) {
+    public ReviewResponseDto createReview(UUID productId, UUID userId, ReviewRequestDto request) {
         var product = productRepository.findById(productId)
                 .orElseThrow(() -> new ProductNotFoundException(productId.toString()));
 
-        var customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new CustomerNotFoundException(customerId.toString()));
+        var customer = customerRepository.findCustomerByUser_UserId(userId)
+                .orElseThrow(() -> new CustomerNotFoundException(userId.toString()));
 
-        validateCustomerHasProcessedProduct(customerId, productId);
+        validateCustomerHasProcessedProduct(customer.getCustomerId(), productId);
 
         Review review = Review.builder()
                 .reviewId(UUID.randomUUID())
                 .product(product)
-                .customerId(customerId)
+                .customerId(customer.getCustomerId())
                 .rating(request.getRating())
                 .comment(request.getComment())
                 .createdAt(Instant.now())
