@@ -1,5 +1,6 @@
 package com.example.ecommerce_system.controller.rest;
 
+import com.example.ecommerce_system.config.RequireAdmin;
 import com.example.ecommerce_system.dto.product.ProductFilter;
 import com.example.ecommerce_system.dto.SuccessResponseDto;
 import com.example.ecommerce_system.dto.product.CreateProductRequest;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Validated
 @RequestMapping("/admin/products")
+@RequireAdmin
 public class ProductAdminController {
     private final ProductService productService;
     private final ReviewService reviewService;
