@@ -21,15 +21,15 @@ public class OrderGraphQLController {
 
     @QueryMapping
     public List<OrderResponseDto> getCustomerOrders(
-            @Argument String customerId,
+            @Argument String userId,
             @Argument(name = "limit") Integer limit,
             @Argument(name = "offset") Integer offset) {
 
-        UUID customerUuid = UUID.fromString(customerId);
+        UUID userUuid = UUID.fromString(userId);
         int limitValue = limit != null ? limit : 10;
         int offsetValue = offset != null ? offset : 0;
 
-        return orderService.getCustomerOrders(customerUuid, limitValue, offsetValue);
+        return orderService.getCustomerOrders(userUuid, limitValue, offsetValue);
     }
 
     @MutationMapping

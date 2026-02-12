@@ -39,11 +39,11 @@ public class ReviewGraphQLController {
     @MutationMapping
     public ReviewResponseDto createReview(
             @Argument String productId,
-            @Argument String customerId,
+            @Argument String userId,
             @Argument ReviewRequestDto request) {
         UUID productUuid = UUID.fromString(productId);
-        UUID customerUuid = UUID.fromString(customerId);
+        UUID userUuid = UUID.fromString(userId);
 
-        return reviewService.createReview(productUuid, customerUuid, request);
+        return reviewService.createReview(productUuid, userUuid, request);
     }
 }
