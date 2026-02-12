@@ -20,6 +20,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -107,6 +108,7 @@ public class CartService {
      * Update the quantity of a cart item in the customer's cart.
      * Validates that the cart item exists and belongs to the customer. Returns the updated cart item with full product details.
      */
+    @Transactional
     public CartItemResponseDto updateCartItem(UUID userId, UUID cartItemId, CartItemRequestDto request) {
         var customer = retrieveCustomerFromRepository(userId);
 
@@ -115,16 +117,9 @@ public class CartService {
 
         checkCartItemAuthorization(customer.getCustomerId(), cartItem);
 
-        CartItem updated = CartItem.builder()
-                .cartItemId(cartItem.getCartItemId())
-                .cart(cartItem.getCart())
-                .product(cartItem.getProduct())
-                .quantity(request.getQuantity())
-                .addedAt(cartItem.getAddedAt())
-                .build();
+        cartItem.setQuantity(request.getQuantity());
 
-        cartItemRepository.save(updated);
-        return cartItemMapper.toDTO(updated);
+        return cartItemMapper.toDTO(cartItem);
     }
 
     private void checkCartItemAuthorization(UUID customerId, CartItem cartItem) {

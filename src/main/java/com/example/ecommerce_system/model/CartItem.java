@@ -1,10 +1,7 @@
 package com.example.ecommerce_system.model;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -15,6 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Builder
 @Getter
+@Setter
 public class CartItem {
     @Id
     @Column(name = "cart_item_id")
