@@ -8,7 +8,6 @@ import com.example.ecommerce_system.exception.customer.CustomerNotFoundException
 import com.example.ecommerce_system.exception.order.InvalidOrderCancellationException;
 import com.example.ecommerce_system.exception.order.InvalidOrderStatusException;
 import com.example.ecommerce_system.exception.order.OrderDoesNotExist;
-import com.example.ecommerce_system.exception.order.OrderStatusConfigurationException;
 import com.example.ecommerce_system.exception.order.OrderStatusNotFoundException;
 import com.example.ecommerce_system.exception.product.InsufficientProductStock;
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
@@ -164,7 +163,7 @@ public class OrderService {
             case PROCESSED -> processOrder(existingOrder);
             case CANCELLED -> cancelOrder(existingOrder);
             default -> throw new InvalidOrderStatusException("this status is not allowed");
-        };
+        }
 
         return orderMapper.toDto(existingOrder);
     }
