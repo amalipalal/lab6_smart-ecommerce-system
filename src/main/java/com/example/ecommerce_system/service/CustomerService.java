@@ -9,6 +9,7 @@ import com.example.ecommerce_system.util.mapper.CustomerMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -63,20 +64,16 @@ public class CustomerService {
      * Validates presence of the customer via {@link com.example.ecommerce_system.store.CustomerStore#getCustomer(java.util.UUID)} and
      * delegates persistence to {@link com.example.ecommerce_system.store.CustomerStore#updateCustomer(com.example.ecommerce_system.model.Customer)}.
      */
+    @Transactional
     public CustomerResponseDto updateCustomer(UUID customerId, CustomerRequestDto request) {
         Customer existing = customerRepository.findById(customerId)
                 .orElseThrow(() -> new CustomerNotFoundException(customerId.toString()));
 
-        Customer updated = Customer.builder()
-                .customerId(existing.getCustomerId())
-                .firstName(existing.getFirstName())
-                .lastName(existing.getLastName())
-                .user(existing.getUser())
-                .phone(request.getPhone() != null ? request.getPhone() : existing.getPhone())
-                .active(request.getActive() != null ? request.getActive() : existing.getActive())
-                .build();
+        if(request.getPhone() != null)
+            existing.setPhone(request.getPhone());
+        if(request.getActive() != null)
+            existing.setActive(request.getActive());
 
-        customerRepository.save(updated);
-        return customerMapper.toDTO(updated);
+        return customerMapper.toDTO(existing);
     }
 }
