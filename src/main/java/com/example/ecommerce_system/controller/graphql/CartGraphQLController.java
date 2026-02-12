@@ -21,36 +21,36 @@ public class CartGraphQLController {
     private final CartService cartService;
 
     @QueryMapping
-    public List<CartItemResponseDto> getCustomerCartItems(@Argument String customerId) {
-        UUID customerUuid = UUID.fromString(customerId);
-        return cartService.getCartItemsByCustomer(customerUuid);
+    public List<CartItemResponseDto> getCustomerCartItems(@Argument String userId) {
+        UUID userUuid = UUID.fromString(userId);
+        return cartService.getCartItemsByCustomer(userUuid);
     }
 
     @MutationMapping
     public CartItemResponseDto addCartItem(
-            @Argument String customerId,
+            @Argument String userId,
             @Argument @Validated(AddCartItem.class) CartItemRequestDto request) {
-        UUID customerUuid = UUID.fromString(customerId);
-        return cartService.addToCart(customerUuid, request);
+        UUID userUuid = UUID.fromString(userId);
+        return cartService.addToCart(userUuid, request);
     }
 
     @MutationMapping
     public CartItemResponseDto updateCartItem(
-            @Argument String customerId,
+            @Argument String userId,
             @Argument String cartItemId,
             @Argument @Validated(UpdateCartItem.class) CartItemRequestDto request) {
-        UUID customerUuid = UUID.fromString(customerId);
+        UUID userUuid = UUID.fromString(userId);
         UUID cartItemUuid = UUID.fromString(cartItemId);
-        return cartService.updateCartItem(customerUuid, cartItemUuid, request);
+        return cartService.updateCartItem(userUuid, cartItemUuid, request);
     }
 
     @MutationMapping
     public Boolean removeFromCart(
-            @Argument String customerId,
+            @Argument String userId,
             @Argument String cartItemId) {
-        UUID customerUuid = UUID.fromString(customerId);
+        UUID userUuid = UUID.fromString(userId);
         UUID cartItemUuid = UUID.fromString(cartItemId);
-        cartService.removeFromCart(customerUuid, cartItemUuid);
+        cartService.removeFromCart(userUuid, cartItemUuid);
         return true;
     }
 }

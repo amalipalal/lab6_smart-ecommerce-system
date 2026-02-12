@@ -143,9 +143,8 @@ public class OrderService {
         return orderMapper.toDtoList(orders);
     }
 
-    public List<OrderResponseDto> getCustomerOrders(UUID customerId, int limit, int offset) {
-        customerRepository.findById(customerId).orElseThrow(
-                () -> new CustomerNotFoundException(customerId.toString()));
+    public List<OrderResponseDto> getCustomerOrders(UUID userId, int limit, int offset) {
+        var customer = checkIfCustomerExists(userId);
 
         PageRequest pageRequest = PageRequest.of(
                 offset,
@@ -153,7 +152,7 @@ public class OrderService {
                 Sort.by("orderDate").descending()
         );
         List<Orders> orders = orderRepository.findAllByCustomer_CustomerId(
-                customerId,
+                customer.getCustomerId(),
                 pageRequest
         );
         return orderMapper.toDtoList(orders);
