@@ -8,7 +8,6 @@ import com.example.ecommerce_system.exception.customer.CustomerNotFoundException
 import com.example.ecommerce_system.exception.order.InvalidOrderCancellationException;
 import com.example.ecommerce_system.exception.order.InvalidOrderStatusException;
 import com.example.ecommerce_system.exception.order.OrderDoesNotExist;
-import com.example.ecommerce_system.exception.order.OrderStatusConfigurationException;
 import com.example.ecommerce_system.exception.order.OrderStatusNotFoundException;
 import com.example.ecommerce_system.exception.product.InsufficientProductStock;
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
@@ -160,18 +159,18 @@ public class OrderService {
         Orders existingOrder = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderDoesNotExist(orderId.toString()));
 
-        Orders updatedOrder = switch (request.getStatus()) {
+        switch (request.getStatus()) {
             case PROCESSED -> processOrder(existingOrder);
             case CANCELLED -> cancelOrder(existingOrder);
             default -> throw new InvalidOrderStatusException("this status is not allowed");
-        };
+        }
 
-        return orderMapper.toDto(updatedOrder);
+        return orderMapper.toDto(existingOrder);
     }
 
-    private Orders processOrder(Orders existingOrder) {
+    private void processOrder(Orders existingOrder) {
         if (existingOrder.getStatus().getStatusName() == PROCESSED)
-            return existingOrder;
+            return;
 
         for (OrderItem item : existingOrder.getOrderItems()) {
             Product product = item.getProduct();
@@ -179,35 +178,21 @@ public class OrderService {
             if (newStock < 0) throw new InsufficientProductStock(product.getProductId().toString());
 
             product.setStockQuantity(newStock);
-            productRepository.save(product);
         }
 
-        Orders processedOrder = buildOrderWithNewStatus(existingOrder, PROCESSED);
-        return orderRepository.save(processedOrder);
+        var status = retrieveOrderStatus(PROCESSED);
+        existingOrder.setStatus(status);
     }
 
-    private Orders cancelOrder(Orders existingOrder) {
+    private void cancelOrder(Orders existingOrder) {
         if (existingOrder.getStatus().getStatusName() != OrderStatusType.PENDING)
             throw new InvalidOrderCancellationException("Only pending orders can be cancelled");
 
-        Orders cancelledOrder = buildOrderWithNewStatus(existingOrder, CANCELLED);
-        return orderRepository.save(cancelledOrder);
+        var status = retrieveOrderStatus(CANCELLED);
+        existingOrder.setStatus(status);
     }
 
-    private Orders buildOrderWithNewStatus(Orders existingOrder, OrderStatusType newStatus) {
-        var status = orderStatusRepository.findOrderStatusByStatusName(newStatus)
-                .orElseThrow(() -> new OrderStatusConfigurationException(newStatus.name()));
-
-        return Orders.builder()
-                .orderId(existingOrder.getOrderId())
-                .customer(existingOrder.getCustomer())
-                .orderDate(existingOrder.getOrderDate())
-                .orderItems(existingOrder.getOrderItems())
-                .totalAmount(existingOrder.getTotalAmount())
-                .shippingCountry(existingOrder.getShippingCountry())
-                .shippingCity(existingOrder.getShippingCity())
-                .shippingPostalCode(existingOrder.getShippingPostalCode())
-                .status(status)
-                .build();
+    private OrderStatus retrieveOrderStatus(OrderStatusType type) {
+        return orderStatusRepository.findOrderStatusByStatusName(type).orElseThrow();
     }
 }

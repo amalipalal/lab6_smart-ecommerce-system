@@ -17,12 +17,15 @@ public interface ProductMapper {
 
     @Mapping(source = "category.categoryId", target = "categoryId")
     @Mapping(source = "stockQuantity", target = "stock")
+    @Mapping(target = "reviews", ignore = true)
     ProductResponseDto toDTO(Product product);
 
     List<ProductResponseDto> toDTOList(List<Product> products);
 
     @Mapping(source = "category", target = "category")
     @Mapping(source = "stockQuantity", target = "stock")
-    @Mapping(target = "reviews", ignore = true)
+    @Mapping(source = "reviews", target = "reviews")
     ProductWithReviewsDto toProductWithReviewsDTO(Product product);
+
+    List<ProductWithReviewsDto> toProductWithReviewsDTOList(List<Product> products);
 }

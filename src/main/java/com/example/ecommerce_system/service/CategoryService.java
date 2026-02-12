@@ -6,13 +6,13 @@ import com.example.ecommerce_system.exception.category.CategoryNotFoundException
 import com.example.ecommerce_system.exception.category.DuplicateCategoryException;
 import com.example.ecommerce_system.model.Category;
 import com.example.ecommerce_system.repository.CategoryRepository;
-import com.example.ecommerce_system.store.CategoryStore;
 import com.example.ecommerce_system.util.mapper.CategoryMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Example;
 import org.springframework.data.domain.ExampleMatcher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,20 +44,11 @@ public class CategoryService {
         return mapper.toDTO(saved);
     }
 
-    private CategoryResponseDto map(Category category) {
-        return CategoryResponseDto.builder()
-                .categoryId(category.getCategoryId())
-                .name(category.getName())
-                .description(category.getDescription())
-                .createdAt(category.getCreatedAt())
-                .updatedAt(category.getUpdatedAt())
-                .build();
-    }
-
     /**
      * Update the category identified by the given ID with new values.
      * Validates that the category exists and the new name doesn't conflict with existing categories.
      */
+    @Transactional
     public CategoryResponseDto updateCategory(UUID id, CategoryRequestDto request) {
         Category existingOption = categoryRepository.findById(id)
                 .orElseThrow(() -> new CategoryNotFoundException(id.toString()));
@@ -65,15 +56,13 @@ public class CategoryService {
         boolean isDuplicate = categoryRepository.findCategoryByName(request.getName()).isPresent();
         if (isDuplicate) throw new DuplicateCategoryException(request.getName());
 
-        Category updated = new Category(
-                existingOption.getCategoryId(),
-                request.getName() == null ? existingOption.getName() : request.getName(),
-                request.getDescription() == null ? existingOption.getDescription() : request.getDescription(),
-                existingOption.getCreatedAt(),
-                Instant.now()
-        );
-        Category saved = categoryRepository.save(updated);
-        return mapper.toDTO(saved);
+        existingOption.setUpdatedAt(Instant.now());
+        if(request.getName() != null)
+            existingOption.setName(request.getName());
+        if(request.getDescription() != null)
+            existingOption.setDescription(request.getDescription());
+
+        return mapper.toDTO(existingOption);
     }
 
     public CategoryResponseDto getCategory(UUID id) {

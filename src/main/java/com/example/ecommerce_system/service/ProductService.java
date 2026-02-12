@@ -4,7 +4,6 @@ import com.example.ecommerce_system.dto.product.ProductFilter;
 import com.example.ecommerce_system.dto.product.ProductRequestDto;
 import com.example.ecommerce_system.dto.product.ProductResponseDto;
 import com.example.ecommerce_system.dto.product.ProductWithReviewsDto;
-import com.example.ecommerce_system.dto.review.ReviewResponseDto;
 import com.example.ecommerce_system.exception.category.CategoryNotFoundException;
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
 import com.example.ecommerce_system.model.Category;
@@ -28,7 +27,6 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
-    private final ReviewService reviewService;
     private final ProductMapper productMapper;
 
     /**
@@ -122,16 +120,10 @@ public class ProductService {
      * Each product includes a limited number of reviews based on reviewLimit parameter.
      */
     public List<ProductWithReviewsDto> getAllProductsWithReviews(int limit, int offset, int reviewLimit) {
-        List<Product> products = productRepository.findAll(PageRequest.of(offset, limit)).getContent();
-        return products.stream().map(product -> {
-            List<ReviewResponseDto> reviews = reviewService.getReviewsByProduct(
-                    product.getProductId(),
-                    reviewLimit,
-                    0
-            );
-            ProductWithReviewsDto dto = productMapper.toProductWithReviewsDTO(product);
-            dto.setReviews(reviews);
-            return dto;
-        }).toList();
+        var productsPage = productRepository.findAllWithLimitedReviews(
+                reviewLimit,
+                PageRequest.of(offset, limit)
+        );
+        return productMapper.toProductWithReviewsDTOList(productsPage.getContent());
     }
 }
