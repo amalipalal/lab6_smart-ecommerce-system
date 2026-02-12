@@ -5,8 +5,11 @@ import com.example.ecommerce_system.dto.orders.OrderRequestDto;
 import com.example.ecommerce_system.dto.orders.OrderResponseDto;
 import com.example.ecommerce_system.enums.OrderStatusType;
 import com.example.ecommerce_system.exception.customer.CustomerNotFoundException;
+import com.example.ecommerce_system.exception.order.InvalidOrderCancellationException;
 import com.example.ecommerce_system.exception.order.InvalidOrderStatusException;
 import com.example.ecommerce_system.exception.order.OrderDoesNotExist;
+import com.example.ecommerce_system.exception.order.OrderStatusConfigurationException;
+import com.example.ecommerce_system.exception.order.OrderStatusNotFoundException;
 import com.example.ecommerce_system.exception.product.InsufficientProductStock;
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
 import com.example.ecommerce_system.model.*;
@@ -48,7 +51,7 @@ public class OrderService {
         var orderId = UUID.randomUUID();
 
         var status = orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PENDING)
-                .orElseThrow(() -> new IllegalStateException("PENDING status not found"));
+                .orElseThrow(() -> new OrderStatusNotFoundException(OrderStatusType.PENDING.name()));
 
         List<OrderItem> items = validateOrderItems(request.getItems());
         double totalAmount = items.stream()
@@ -189,7 +192,7 @@ public class OrderService {
 
     private Orders cancelOrder(Orders existingOrder) {
         if (existingOrder.getStatus().getStatusName() != OrderStatusType.PENDING)
-            throw new IllegalStateException("Only pending orders can be cancelled");
+            throw new InvalidOrderCancellationException("Only pending orders can be cancelled");
 
         Orders cancelledOrder = buildOrderWithNewStatus(existingOrder, CANCELLED);
         return orderRepository.save(cancelledOrder);
@@ -197,7 +200,7 @@ public class OrderService {
 
     private Orders buildOrderWithNewStatus(Orders existingOrder, OrderStatusType newStatus) {
         var status = orderStatusRepository.findOrderStatusByStatusName(newStatus)
-                .orElseThrow(() -> new IllegalStateException("Status does not exist"));
+                .orElseThrow(() -> new OrderStatusConfigurationException(newStatus.name()));
 
         return Orders.builder()
                 .orderId(existingOrder.getOrderId())
