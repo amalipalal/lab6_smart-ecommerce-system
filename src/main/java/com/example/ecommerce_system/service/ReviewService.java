@@ -90,4 +90,21 @@ public class ReviewService {
         List<Review> reviews =  reviewRepository.findAllByProduct_ProductId(productId, pageRequest).getContent();
         return reviewMapper.toDTOList(reviews);
     }
+
+    /**
+     * Retrieve paginated reviews made by a specific customer.
+     * Validates customer existence before fetching reviews.
+     */
+    public List<ReviewResponseDto> getReviewsByCustomer(UUID customerId, int limit, int offset) {
+        var customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new CustomerNotFoundException(customerId.toString()));
+
+        PageRequest pageRequest = PageRequest.of(
+                offset,
+                limit,
+                Sort.by("createdAt").descending()
+        );
+        List<Review> reviews = reviewRepository.findAllByCustomer_CustomerId(customer.getCustomerId(), pageRequest).getContent();
+        return reviewMapper.toDTOList(reviews);
+    }
 }
