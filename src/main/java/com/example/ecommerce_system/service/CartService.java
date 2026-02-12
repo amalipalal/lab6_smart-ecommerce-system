@@ -40,12 +40,12 @@ public class CartService {
      * Add a product to a customer's cart.
      * Creates a cart if the customer doesn't have one yet. Validates customer and product existence.
      */
-    public CartItemResponseDto addToCart(UUID customerId, CartItemRequestDto request) {
-        retrieveCustomerFromRepository(customerId);
+    public CartItemResponseDto addToCart(UUID userId, CartItemRequestDto request) {
+        var customer = retrieveCustomerFromRepository(userId);
 
         var product = retrieveProductFromRepository(request.getProductId());
 
-        var cart = getOrCreateCartForCustomer(customerId);
+        var cart = getOrCreateCartForCustomer(customer.getCustomerId());
 
         CartItem cartItem = CartItem.builder()
                 .cartItemId(UUID.randomUUID())
@@ -60,9 +60,9 @@ public class CartService {
         return cartItemMapper.toDTO(cartItem);
     }
 
-    private Customer retrieveCustomerFromRepository(UUID customerId) {
-        return customerRepository.findById(customerId).orElseThrow(
-                () -> new CustomerNotFoundException(customerId.toString())
+    private Customer retrieveCustomerFromRepository(UUID userId) {
+        return customerRepository.findCustomerByUser_UserId(userId).orElseThrow(
+                () -> new CustomerNotFoundException(userId.toString())
         );
     }
 
@@ -92,13 +92,13 @@ public class CartService {
      * Remove a cart item from the customer's cart.
      * Validates that the cart item exists and belongs to the customer before removal.
      */
-    public void removeFromCart(UUID customerId, UUID cartItemId) {
-        retrieveCustomerFromRepository(customerId);
+    public void removeFromCart(UUID userId, UUID cartItemId) {
+        var customer = retrieveCustomerFromRepository(userId);
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new CartItemNotFoundException(cartItemId.toString()));
 
-        checkCartItemAuthorization(customerId, cartItem);
+        checkCartItemAuthorization(customer.getCustomerId(), cartItem);
 
         cartItemRepository.deleteById(cartItemId);
     }
@@ -107,13 +107,13 @@ public class CartService {
      * Update the quantity of a cart item in the customer's cart.
      * Validates that the cart item exists and belongs to the customer. Returns the updated cart item with full product details.
      */
-    public CartItemResponseDto updateCartItem(UUID customerId, UUID cartItemId, CartItemRequestDto request) {
-        retrieveCustomerFromRepository(customerId);
+    public CartItemResponseDto updateCartItem(UUID userId, UUID cartItemId, CartItemRequestDto request) {
+        var customer = retrieveCustomerFromRepository(userId);
 
         CartItem cartItem = cartItemRepository.findById(cartItemId)
                 .orElseThrow(() -> new CartItemNotFoundException(cartItemId.toString()));
 
-        checkCartItemAuthorization(customerId, cartItem);
+        checkCartItemAuthorization(customer.getCustomerId(), cartItem);
 
         CartItem updated = CartItem.builder()
                 .cartItemId(cartItem.getCartItemId())
@@ -138,10 +138,10 @@ public class CartService {
      * Get all cart items for a customer.
      * Returns an empty list if the customer has no cart. Each cart item includes full product details.
      */
-    public List<CartItemResponseDto> getCartItemsByCustomer(UUID customerId) {
-        retrieveCustomerFromRepository(customerId);
+    public List<CartItemResponseDto> getCartItemsByCustomer(UUID userId) {
+        var customer = retrieveCustomerFromRepository(userId);
 
-        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customerId);
+        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customer.getCustomerId());
 
         if (cartOpt.isEmpty()) return List.of();
 
@@ -154,10 +154,10 @@ public class CartService {
      * Search through a customer's cart items by product name or description with pagination.
      * Returns an empty list if the customer has no cart or no items match the search term.
      */
-    public List<CartItemResponseDto> searchCartItems(UUID customerId, String searchTerm, int limit, int offset) {
-        retrieveCustomerFromRepository(customerId);
+    public List<CartItemResponseDto> searchCartItems(UUID userId, String searchTerm, int limit, int offset) {
+        var customer = retrieveCustomerFromRepository(userId);
 
-        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customerId);
+        Optional<Cart> cartOpt = cartRepository.findCartByCustomer_CustomerId(customer.getCustomerId());
 
         if (cartOpt.isEmpty()) return List.of();
 
