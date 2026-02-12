@@ -105,16 +105,16 @@ type ProductWithReviewsDto {
 scalar JSON
 
 type Query {
-    getCustomerCartItems(customerId: ID!): [CartItemResponseDto!]
-    getCustomerOrders(customerId: ID!, limit: Int = 10, offset: Int = 0): [OrderResponseDto!]!
+    getCustomerCartItems(userId: ID!): [CartItemResponseDto!]
+    getCustomerOrders(userId: ID!, limit: Int = 10, offset: Int = 0): [OrderResponseDto!]!
     getProductReviews(productId: ID!, limit: Int = 10, offset: Int = 0): [ReviewResponseDto!]!
     getAllProductsWithReviews(limit: Int! = 10, offset: Int! = 0, reviewLimit: Int!): [ProductWithReviewsDto!]!
 }
 
 type Mutation {
     placeOrder(userId: ID!, input: OrderRequest!): OrderResponseDto!
-    addCartItem(customerId: ID!, request: AddCartItemRequestDto!): CartItemResponseDto!
-    updateCartItem(customerId: ID!, cartItemId: ID!, request: UpdateCartItemRequest!): CartItemResponseDto!
-    removeFromCart(customerId: ID!, cartItemId: ID!): Boolean
-    createReview(productId: ID!, customerId: ID!, request: ReviewRequestDto!): ReviewResponseDto!
+    addCartItem(userId: ID!, request: AddCartItemRequestDto!): CartItemResponseDto!
+    updateCartItem(userId: ID!, cartItemId: ID!, request: UpdateCartItemRequest!): CartItemResponseDto!
+    removeFromCart(userId: ID!, cartItemId: ID!): Boolean
+    createReview(productId: ID!, userId: ID!, request: ReviewRequestDto!): ReviewResponseDto!
 }
