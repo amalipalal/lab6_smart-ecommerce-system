@@ -17,6 +17,7 @@ import com.example.ecommerce_system.repository.UserRepository;
 import com.example.ecommerce_system.service.AuthService;
 import com.example.ecommerce_system.util.mapper.AuthMapper;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +25,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -51,6 +53,11 @@ class AuthServiceTest {
 
     @InjectMocks
     private AuthService authService;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(authService, "secretKey", "test-secret-key-for-jwt-token-generation");
+    }
 
     @Test
     @DisplayName("Should signup user successfully")
@@ -97,7 +104,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
-        when(authMapper.toDTO(savedUser)).thenReturn(authResponse);
+        when(authMapper.toDTO(savedUser, null)).thenReturn(authResponse);
 
         AuthResponseDto response = authService.signup(request);
 
@@ -108,7 +115,7 @@ class AuthServiceTest {
         verify(passwordEncoder).encode("Password123!");
         verify(userRepository).save(any(User.class));
         verify(customerRepository).save(any(Customer.class));
-        verify(authMapper).toDTO(savedUser);
+        verify(authMapper).toDTO(savedUser, null);
     }
 
     @Test
@@ -288,7 +295,7 @@ class AuthServiceTest {
 
         when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Password123!", "hashedPassword")).thenReturn(true);
-        when(authMapper.toDTO(user)).thenReturn(authResponse);
+        when(authMapper.toDTO(eq(user), anyString())).thenReturn(authResponse);
 
         AuthResponseDto response = authService.login(request);
 
@@ -296,7 +303,7 @@ class AuthServiceTest {
         Assertions.assertEquals(RoleType.CUSTOMER, response.getRoleName());
         verify(userRepository).findUserByEmail("user@example.com");
         verify(passwordEncoder).matches("Password123!", "hashedPassword");
-        verify(authMapper).toDTO(user);
+        verify(authMapper).toDTO(eq(user), anyString());
     }
 
     @Test
@@ -384,7 +391,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
-        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
+        when(authMapper.toDTO(any(User.class), isNull())).thenReturn(mock(AuthResponseDto.class));
 
         authService.signup(request);
 
@@ -442,7 +449,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
-        when(authMapper.toDTO(savedUser)).thenReturn(authResponse);
+        when(authMapper.toDTO(savedUser, null)).thenReturn(authResponse);
 
         AuthResponseDto response = authService.signup(request);
 
@@ -485,7 +492,7 @@ class AuthServiceTest {
 
         when(userRepository.findUserByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("Password123!", "hashedPassword")).thenReturn(true);
-        when(authMapper.toDTO(user)).thenReturn(authResponse);
+        when(authMapper.toDTO(eq(user), anyString())).thenReturn(authResponse);
 
         AuthResponseDto response = authService.login(request);
 
@@ -533,7 +540,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("ValidPass123!")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
-        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
+        when(authMapper.toDTO(any(User.class), isNull())).thenReturn(mock(AuthResponseDto.class));
 
         Assertions.assertDoesNotThrow(() -> authService.signup(request));
 
@@ -575,7 +582,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode(any())).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
-        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
+        when(authMapper.toDTO(any(User.class), isNull())).thenReturn(mock(AuthResponseDto.class));
 
         Assertions.assertDoesNotThrow(() -> authService.signup(request1));
         Assertions.assertDoesNotThrow(() -> authService.signup(request2));
@@ -622,7 +629,7 @@ class AuthServiceTest {
         when(passwordEncoder.encode("Password123!")).thenReturn("hashedPassword");
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
         when(customerRepository.save(any(Customer.class))).thenReturn(savedCustomer);
-        when(authMapper.toDTO(any(User.class))).thenReturn(mock(AuthResponseDto.class));
+        when(authMapper.toDTO(any(User.class), isNull())).thenReturn(mock(AuthResponseDto.class));
 
         authService.signup(request);
 
