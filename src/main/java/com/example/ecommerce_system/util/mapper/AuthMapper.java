@@ -8,6 +8,6 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring", uses = {RoleMapper.class})
 public interface AuthMapper {
 
-    @Mapping(source = "role", target = "roleName")
-    AuthResponseDto toDTO(User user);
+    @Mapping(source = "user.role", target = "roleName")
+    AuthResponseDto toDTO(User user, String token);
 }

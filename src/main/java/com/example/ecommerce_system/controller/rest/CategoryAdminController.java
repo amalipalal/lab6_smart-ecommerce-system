@@ -1,5 +1,6 @@
 package com.example.ecommerce_system.controller.rest;
 
+import com.example.ecommerce_system.config.RequireAdmin;
 import com.example.ecommerce_system.dto.SuccessResponseDto;
 import com.example.ecommerce_system.dto.category.CategoryRequestDto;
 import com.example.ecommerce_system.dto.category.CategoryResponseDto;
@@ -20,6 +21,7 @@ import java.util.UUID;
 @RestController
 @Validated
 @AllArgsConstructor
+@RequireAdmin
 @RequestMapping("/admin/categories")
 public class CategoryAdminController {
     private final CategoryService categoryService;

@@ -3,25 +3,31 @@ package com.example.ecommerce_system;
 import com.example.ecommerce_system.dto.orders.OrderItemDto;
 import com.example.ecommerce_system.dto.orders.OrderRequestDto;
 import com.example.ecommerce_system.dto.orders.OrderResponseDto;
+import com.example.ecommerce_system.enums.OrderStatusType;
 import com.example.ecommerce_system.exception.customer.CustomerNotFoundException;
+import com.example.ecommerce_system.exception.order.InvalidOrderCancellationException;
 import com.example.ecommerce_system.exception.order.InvalidOrderStatusException;
 import com.example.ecommerce_system.exception.order.OrderDoesNotExist;
 import com.example.ecommerce_system.exception.product.InsufficientProductStock;
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
 import com.example.ecommerce_system.model.*;
+import com.example.ecommerce_system.repository.*;
 import com.example.ecommerce_system.service.OrderService;
-import com.example.ecommerce_system.store.CustomerStore;
-import com.example.ecommerce_system.store.OrdersStore;
-import com.example.ecommerce_system.store.ProductStore;
+import com.example.ecommerce_system.util.mapper.OrderMapper;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,16 +38,47 @@ import static org.mockito.Mockito.*;
 class OrderServiceTest {
 
     @Mock
-    private OrdersStore orderStore;
+    private OrderRepository orderRepository;
 
     @Mock
-    private CustomerStore customerStore;
+    private OrderStatusRepository orderStatusRepository;
 
     @Mock
-    private ProductStore productStore;
+    private CustomerRepository customerRepository;
+
+    @Mock
+    private ProductRepository productRepository;
+
+    @Mock
+    private OrderMapper orderMapper;
 
     @InjectMocks
     private OrderService orderService;
+
+    private OrderStatus pendingStatus;
+    private OrderStatus processedStatus;
+    private OrderStatus cancelledStatus;
+
+    @BeforeEach
+    void setUp() {
+        pendingStatus = OrderStatus.builder()
+                .statusId(UUID.randomUUID())
+                .statusName(OrderStatusType.PENDING)
+                .description("Order is pending")
+                .build();
+
+        processedStatus = OrderStatus.builder()
+                .statusId(UUID.randomUUID())
+                .statusName(OrderStatusType.PROCESSED)
+                .description("Order has been processed")
+                .build();
+
+        cancelledStatus = OrderStatus.builder()
+                .statusId(UUID.randomUUID())
+                .statusName(OrderStatusType.CANCELLED)
+                .description("Order has been cancelled")
+                .build();
+    }
 
     @Test
     @DisplayName("Should place order successfully")
@@ -50,10 +87,16 @@ class OrderServiceTest {
         UUID customerId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
+        User user = User.builder()
+                .userId(userId)
+                .email("test@example.com")
+                .build();
+
         Customer customer = Customer.builder()
                 .customerId(customerId)
                 .firstName("John")
                 .lastName("Doe")
+                .user(user)
                 .build();
 
         Product product = Product.builder()
@@ -77,27 +120,36 @@ class OrderServiceTest {
 
         Orders savedOrder = Orders.builder()
                 .orderId(UUID.randomUUID())
-                .customerId(customerId)
+                .customer(customer)
                 .totalAmount(2400.0)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
                 .orderDate(Instant.now())
                 .shippingCity("Accra")
                 .shippingCountry("Ghana")
                 .shippingPostalCode("00233")
+                .orderItems(new ArrayList<>())
                 .build();
 
-        when(customerStore.getCustomerByUserId(userId)).thenReturn(Optional.of(customer));
-        when(productStore.getProduct(productId)).thenReturn(Optional.of(product));
-        when(orderStore.createOrder(any(Orders.class), anyList())).thenReturn(savedOrder);
+        OrderResponseDto responseDto = OrderResponseDto.builder()
+                .orderId(savedOrder.getOrderId())
+                .status(OrderStatusType.PENDING.name())
+                .totalAmount(2400.0)
+                .build();
+
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
+        when(orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PENDING))
+                .thenReturn(Optional.of(pendingStatus));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(orderRepository.save(any(Orders.class))).thenReturn(savedOrder);
+        when(orderMapper.toDto(any(Orders.class))).thenReturn(responseDto);
 
         OrderResponseDto response = orderService.placeOrder(request, userId);
 
         Assertions.assertNotNull(response.getOrderId());
-        Assertions.assertEquals(OrderStatus.PENDING, response.getStatus());
-        Assertions.assertEquals(1, response.getItems().size());
-        verify(customerStore).getCustomerByUserId(userId);
-        verify(productStore).getProduct(productId);
-        verify(orderStore).createOrder(any(Orders.class), anyList());
+        Assertions.assertEquals(OrderStatusType.PENDING.name(), response.getStatus());
+        verify(customerRepository).findCustomerByUser_UserId(userId);
+        verify(productRepository).findById(productId);
+        verify(orderRepository).save(any(Orders.class));
     }
 
     @Test
@@ -108,15 +160,15 @@ class OrderServiceTest {
                 .items(List.of())
                 .build();
 
-        when(customerStore.getCustomerByUserId(userId)).thenReturn(Optional.empty());
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(
                 CustomerNotFoundException.class,
                 () -> orderService.placeOrder(request, userId)
         );
 
-        verify(customerStore).getCustomerByUserId(userId);
-        verify(orderStore, never()).createOrder(any(), anyList());
+        verify(customerRepository).findCustomerByUser_UserId(userId);
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -126,8 +178,13 @@ class OrderServiceTest {
         UUID customerId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
+        User user = User.builder()
+                .userId(userId)
+                .build();
+
         Customer customer = Customer.builder()
                 .customerId(customerId)
+                .user(user)
                 .build();
 
         OrderItemDto itemDto = OrderItemDto.builder()
@@ -137,18 +194,23 @@ class OrderServiceTest {
 
         OrderRequestDto request = OrderRequestDto.builder()
                 .items(List.of(itemDto))
+                .city("Accra")
+                .country("Ghana")
+                .postalCode("00233")
                 .build();
 
-        when(customerStore.getCustomerByUserId(userId)).thenReturn(Optional.of(customer));
-        when(productStore.getProduct(productId)).thenReturn(Optional.empty());
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
+        when(orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PENDING))
+                .thenReturn(Optional.of(pendingStatus));
+        when(productRepository.findById(productId)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(
                 ProductNotFoundException.class,
                 () -> orderService.placeOrder(request, userId)
         );
 
-        verify(productStore).getProduct(productId);
-        verify(orderStore, never()).createOrder(any(), anyList());
+        verify(productRepository).findById(productId);
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -158,8 +220,13 @@ class OrderServiceTest {
         UUID customerId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
+        User user = User.builder()
+                .userId(userId)
+                .build();
+
         Customer customer = Customer.builder()
                 .customerId(customerId)
+                .user(user)
                 .build();
 
         Product product = Product.builder()
@@ -174,17 +241,22 @@ class OrderServiceTest {
 
         OrderRequestDto request = OrderRequestDto.builder()
                 .items(List.of(itemDto))
+                .city("Accra")
+                .country("Ghana")
+                .postalCode("00233")
                 .build();
 
-        when(customerStore.getCustomerByUserId(userId)).thenReturn(Optional.of(customer));
-        when(productStore.getProduct(productId)).thenReturn(Optional.of(product));
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
+        when(orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PENDING))
+                .thenReturn(Optional.of(pendingStatus));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
 
         Assertions.assertThrows(
                 InsufficientProductStock.class,
                 () -> orderService.placeOrder(request, userId)
         );
 
-        verify(orderStore, never()).createOrder(any(), anyList());
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -193,29 +265,27 @@ class OrderServiceTest {
         UUID orderId = UUID.randomUUID();
         Orders order = Orders.builder()
                 .orderId(orderId)
-                .customerId(UUID.randomUUID())
+                .customer(Customer.builder().customerId(UUID.randomUUID()).build())
                 .totalAmount(1200.0)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
                 .orderDate(Instant.now())
+                .orderItems(new ArrayList<>())
                 .build();
 
-        OrderItem item = OrderItem.builder()
-                .orderItemId(UUID.randomUUID())
+        OrderResponseDto responseDto = OrderResponseDto.builder()
                 .orderId(orderId)
-                .productId(UUID.randomUUID())
-                .quantity(1)
-                .priceAtPurchase(1200.0)
+                .status(OrderStatusType.PENDING.name())
+                .totalAmount(1200.0)
                 .build();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.of(order));
-        when(orderStore.getOrderItemsByOrderId(orderId)).thenReturn(List.of(item));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
+        when(orderMapper.toDto(order)).thenReturn(responseDto);
 
         OrderResponseDto response = orderService.getOrder(orderId);
 
         Assertions.assertEquals(orderId, response.getOrderId());
-        Assertions.assertEquals(1, response.getItems().size());
-        verify(orderStore).getOrder(orderId);
-        verify(orderStore).getOrderItemsByOrderId(orderId);
+        verify(orderRepository).findById(orderId);
+        verify(orderMapper).toDto(order);
     }
 
     @Test
@@ -223,15 +293,14 @@ class OrderServiceTest {
     void shouldThrowWhenOrderNotFound() {
         UUID orderId = UUID.randomUUID();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.empty());
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(
                 OrderDoesNotExist.class,
                 () -> orderService.getOrder(orderId)
         );
 
-        verify(orderStore).getOrder(orderId);
-        verify(orderStore, never()).getOrderItemsByOrderId(any());
+        verify(orderRepository).findById(orderId);
     }
 
     @Test
@@ -239,125 +308,131 @@ class OrderServiceTest {
     void shouldGetAllOrdersSuccessfully() {
         Orders order1 = Orders.builder()
                 .orderId(UUID.randomUUID())
-                .customerId(UUID.randomUUID())
+                .customer(Customer.builder().customerId(UUID.randomUUID()).build())
                 .totalAmount(1200.0)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
                 .orderDate(Instant.now())
+                .orderItems(new ArrayList<>())
                 .build();
 
         Orders order2 = Orders.builder()
                 .orderId(UUID.randomUUID())
-                .customerId(UUID.randomUUID())
+                .customer(Customer.builder().customerId(UUID.randomUUID()).build())
                 .totalAmount(800.0)
-                .status(OrderStatus.PROCESSED)
+                .status(processedStatus)
                 .orderDate(Instant.now())
+                .orderItems(new ArrayList<>())
                 .build();
 
-        OrderItem item1 = OrderItem.builder()
-                .orderItemId(UUID.randomUUID())
-                .orderId(order1.getOrderId())
-                .productId(UUID.randomUUID())
-                .quantity(1)
-                .priceAtPurchase(1200.0)
-                .build();
+        Page<Orders> ordersPage = new PageImpl<>(List.of(order1, order2));
+        List<OrderResponseDto> responseDtos = List.of(
+                OrderResponseDto.builder().orderId(order1.getOrderId()).build(),
+                OrderResponseDto.builder().orderId(order2.getOrderId()).build()
+        );
 
-        OrderItem item2 = OrderItem.builder()
-                .orderItemId(UUID.randomUUID())
-                .orderId(order2.getOrderId())
-                .productId(UUID.randomUUID())
-                .quantity(2)
-                .priceAtPurchase(400.0)
-                .build();
-
-        when(orderStore.getAllOrders(10, 0)).thenReturn(List.of(order1, order2));
-        when(orderStore.getOrderItemsByOrderId(order1.getOrderId())).thenReturn(List.of(item1));
-        when(orderStore.getOrderItemsByOrderId(order2.getOrderId())).thenReturn(List.of(item2));
+        when(orderRepository.findAll(any(PageRequest.class))).thenReturn(ordersPage);
+        when(orderMapper.toDtoList(anyList())).thenReturn(responseDtos);
 
         List<OrderResponseDto> response = orderService.getAllOrders(10, 0);
 
         Assertions.assertEquals(2, response.size());
-        verify(orderStore).getAllOrders(10, 0);
-        verify(orderStore, times(2)).getOrderItemsByOrderId(any());
+        verify(orderRepository).findAll(any(PageRequest.class));
     }
 
     @Test
     @DisplayName("Should get customer orders successfully")
     void shouldGetCustomerOrdersSuccessfully() {
+        UUID userId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
+
+        User user = User.builder()
+                .userId(userId)
+                .build();
+
         Customer customer = Customer.builder()
                 .customerId(customerId)
+                .user(user)
                 .build();
 
         Orders order = Orders.builder()
                 .orderId(UUID.randomUUID())
-                .customerId(customerId)
+                .customer(customer)
                 .totalAmount(1200.0)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
                 .orderDate(Instant.now())
+                .orderItems(new ArrayList<>())
                 .build();
 
-        OrderItem item = OrderItem.builder()
-                .orderItemId(UUID.randomUUID())
-                .orderId(order.getOrderId())
-                .productId(UUID.randomUUID())
-                .quantity(1)
-                .priceAtPurchase(1200.0)
-                .build();
+        List<OrderResponseDto> responseDtos = List.of(
+                OrderResponseDto.builder().orderId(order.getOrderId()).build()
+        );
 
-        when(customerStore.getCustomer(customerId)).thenReturn(Optional.of(customer));
-        when(orderStore.getCustomerOrders(customerId, 10, 0)).thenReturn(List.of(order));
-        when(orderStore.getOrderItemsByOrderId(order.getOrderId())).thenReturn(List.of(item));
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
+        when(orderRepository.findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class)))
+                .thenReturn(List.of(order));
+        when(orderMapper.toDtoList(anyList())).thenReturn(responseDtos);
 
-        List<OrderResponseDto> response = orderService.getCustomerOrders(customerId, 10, 0);
+        List<OrderResponseDto> response = orderService.getCustomerOrders(userId, 10, 0);
 
         Assertions.assertEquals(1, response.size());
-        Assertions.assertEquals(order.getOrderId(), response.get(0).getOrderId());
-        verify(customerStore).getCustomer(customerId);
-        verify(orderStore).getCustomerOrders(customerId, 10, 0);
+        verify(customerRepository).findCustomerByUser_UserId(userId);
+        verify(orderRepository).findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class));
     }
 
     @Test
     @DisplayName("Should throw error when getting orders for non-existing customer")
     void shouldThrowWhenGettingOrdersForNonExistingCustomer() {
-        UUID customerId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
 
-        when(customerStore.getCustomer(customerId)).thenReturn(Optional.empty());
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.empty());
 
         Assertions.assertThrows(
                 CustomerNotFoundException.class,
-                () -> orderService.getCustomerOrders(customerId, 10, 0)
+                () -> orderService.getCustomerOrders(userId, 10, 0)
         );
 
-        verify(customerStore).getCustomer(customerId);
-        verify(orderStore, never()).getCustomerOrders(any(), anyInt(), anyInt());
+        verify(customerRepository).findCustomerByUser_UserId(userId);
+        verify(orderRepository, never()).findAllByCustomer_CustomerId(any(), any());
     }
 
     @Test
     @DisplayName("Should handle pagination in get all orders")
     void shouldHandlePaginationInGetAllOrders() {
-        when(orderStore.getAllOrders(5, 10)).thenReturn(List.of());
+        Page<Orders> emptyPage = new PageImpl<>(List.of());
+
+        when(orderRepository.findAll(any(PageRequest.class))).thenReturn(emptyPage);
+        when(orderMapper.toDtoList(anyList())).thenReturn(List.of());
 
         List<OrderResponseDto> response = orderService.getAllOrders(5, 10);
 
         Assertions.assertEquals(0, response.size());
-        verify(orderStore).getAllOrders(5, 10);
+        verify(orderRepository).findAll(any(PageRequest.class));
     }
 
     @Test
     @DisplayName("Should handle pagination in get customer orders")
     void shouldHandlePaginationInGetCustomerOrders() {
+        UUID userId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
-        Customer customer = Customer.builder()
-                .customerId(customerId)
+
+        User user = User.builder()
+                .userId(userId)
                 .build();
 
-        when(customerStore.getCustomer(customerId)).thenReturn(Optional.of(customer));
-        when(orderStore.getCustomerOrders(customerId, 5, 10)).thenReturn(List.of());
+        Customer customer = Customer.builder()
+                .customerId(customerId)
+                .user(user)
+                .build();
 
-        List<OrderResponseDto> response = orderService.getCustomerOrders(customerId, 5, 10);
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
+        when(orderRepository.findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class)))
+                .thenReturn(List.of());
+        when(orderMapper.toDtoList(anyList())).thenReturn(List.of());
+
+        List<OrderResponseDto> response = orderService.getCustomerOrders(userId, 5, 10);
 
         Assertions.assertEquals(0, response.size());
-        verify(orderStore).getCustomerOrders(customerId, 5, 10);
+        verify(orderRepository).findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class));
     }
 
     @Test
@@ -368,8 +443,13 @@ class OrderServiceTest {
         UUID productId1 = UUID.randomUUID();
         UUID productId2 = UUID.randomUUID();
 
+        User user = User.builder()
+                .userId(userId)
+                .build();
+
         Customer customer = Customer.builder()
                 .customerId(customerId)
+                .user(user)
                 .build();
 
         Product product1 = Product.builder()
@@ -403,24 +483,34 @@ class OrderServiceTest {
 
         Orders savedOrder = Orders.builder()
                 .orderId(UUID.randomUUID())
-                .customerId(customerId)
+                .customer(customer)
                 .totalAmount(1900.0)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
                 .orderDate(Instant.now())
                 .shippingCity("Accra")
                 .shippingCountry("Ghana")
                 .shippingPostalCode("00233")
+                .orderItems(new ArrayList<>())
                 .build();
 
-        when(customerStore.getCustomerByUserId(userId)).thenReturn(Optional.of(customer));
-        when(productStore.getProduct(productId1)).thenReturn(Optional.of(product1));
-        when(productStore.getProduct(productId2)).thenReturn(Optional.of(product2));
-        when(orderStore.createOrder(any(Orders.class), anyList())).thenReturn(savedOrder);
+        OrderResponseDto responseDto = OrderResponseDto.builder()
+                .orderId(savedOrder.getOrderId())
+                .status(OrderStatusType.PENDING.name())
+                .totalAmount(1900.0)
+                .build();
+
+        when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
+        when(orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PENDING))
+                .thenReturn(Optional.of(pendingStatus));
+        when(productRepository.findById(productId1)).thenReturn(Optional.of(product1));
+        when(productRepository.findById(productId2)).thenReturn(Optional.of(product2));
+        when(orderRepository.save(any(Orders.class))).thenReturn(savedOrder);
+        when(orderMapper.toDto(any(Orders.class))).thenReturn(responseDto);
 
         OrderResponseDto response = orderService.placeOrder(request, userId);
 
-        Assertions.assertEquals(2, response.getItems().size());
-        verify(orderStore).createOrder(any(Orders.class), anyList());
+        Assertions.assertNotNull(response);
+        verify(orderRepository).save(any(Orders.class));
     }
 
     @Test
@@ -429,49 +519,58 @@ class OrderServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        Orders existingOrder = Orders.builder()
-                .orderId(orderId)
-                .customerId(UUID.randomUUID())
-                .totalAmount(1200.0)
-                .status(OrderStatus.PENDING)
-                .orderDate(Instant.now())
-                .build();
-
-        OrderItem item = OrderItem.builder()
-                .orderItemId(UUID.randomUUID())
-                .orderId(orderId)
-                .productId(productId)
-                .quantity(2)
-                .priceAtPurchase(600.0)
-                .build();
-
         Product product = Product.builder()
                 .productId(productId)
                 .stockQuantity(10)
                 .build();
 
+        OrderItem item = OrderItem.builder()
+                .orderItemId(UUID.randomUUID())
+                .product(product)
+                .quantity(2)
+                .priceAtPurchase(600.0)
+                .build();
+
+        Orders existingOrder = Orders.builder()
+                .orderId(orderId)
+                .customer(Customer.builder().customerId(UUID.randomUUID()).build())
+                .totalAmount(1200.0)
+                .status(pendingStatus)
+                .orderDate(Instant.now())
+                .orderItems(List.of(item))
+                .build();
+
         Orders processedOrder = Orders.builder()
                 .orderId(orderId)
-                .customerId(existingOrder.getCustomerId())
+                .customer(existingOrder.getCustomer())
                 .totalAmount(1200.0)
-                .status(OrderStatus.PROCESSED)
+                .status(processedStatus)
                 .orderDate(existingOrder.getOrderDate())
+                .orderItems(existingOrder.getOrderItems())
+                .build();
+
+        OrderResponseDto responseDto = OrderResponseDto.builder()
+                .orderId(orderId)
+                .status(OrderStatusType.PROCESSED.name())
+                .totalAmount(1200.0)
                 .build();
 
         OrderRequestDto request = OrderRequestDto.builder()
-                .status(OrderStatus.PROCESSED)
+                .status(OrderStatusType.PROCESSED)
                 .build();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.of(existingOrder));
-        when(orderStore.getOrderItemsByOrderId(orderId)).thenReturn(List.of(item));
-        when(productStore.getProduct(productId)).thenReturn(Optional.of(product));
-        when(orderStore.updateOrder(any(Orders.class))).thenReturn(processedOrder);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
+        when(orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.PROCESSED))
+                .thenReturn(Optional.of(processedStatus));
+        when(productRepository.save(any(Product.class))).thenReturn(product);
+        when(orderRepository.save(any(Orders.class))).thenReturn(processedOrder);
+        when(orderMapper.toDto(any(Orders.class))).thenReturn(responseDto);
 
         OrderResponseDto response = orderService.updateOrderStatus(orderId, request);
 
-        Assertions.assertEquals(OrderStatus.PROCESSED, response.getStatus());
-        verify(productStore).updateProductStocks(anyList(), anyList());
-        verify(orderStore).updateOrder(any(Orders.class));
+        Assertions.assertEquals(OrderStatusType.PROCESSED.name(), response.getStatus());
+        verify(productRepository).save(any(Product.class));
+        verify(orderRepository).save(any(Orders.class));
     }
 
     @Test
@@ -481,33 +580,43 @@ class OrderServiceTest {
 
         Orders existingOrder = Orders.builder()
                 .orderId(orderId)
-                .customerId(UUID.randomUUID())
+                .customer(Customer.builder().customerId(UUID.randomUUID()).build())
                 .totalAmount(1200.0)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
                 .orderDate(Instant.now())
+                .orderItems(new ArrayList<>())
                 .build();
 
         Orders cancelledOrder = Orders.builder()
                 .orderId(orderId)
-                .customerId(existingOrder.getCustomerId())
+                .customer(existingOrder.getCustomer())
                 .totalAmount(1200.0)
-                .status(OrderStatus.CANCELLED)
+                .status(cancelledStatus)
                 .orderDate(existingOrder.getOrderDate())
+                .orderItems(existingOrder.getOrderItems())
+                .build();
+
+        OrderResponseDto responseDto = OrderResponseDto.builder()
+                .orderId(orderId)
+                .status(OrderStatusType.CANCELLED.name())
+                .totalAmount(1200.0)
+                .items(null)
                 .build();
 
         OrderRequestDto request = OrderRequestDto.builder()
-                .status(OrderStatus.CANCELLED)
+                .status(OrderStatusType.CANCELLED)
                 .build();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.of(existingOrder));
-        when(orderStore.updateOrder(any(Orders.class))).thenReturn(cancelledOrder);
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
+        when(orderStatusRepository.findOrderStatusByStatusName(OrderStatusType.CANCELLED))
+                .thenReturn(Optional.of(cancelledStatus));
+        when(orderRepository.save(any(Orders.class))).thenReturn(cancelledOrder);
+        when(orderMapper.toDto(any(Orders.class))).thenReturn(responseDto);
 
         OrderResponseDto response = orderService.updateOrderStatus(orderId, request);
 
-        Assertions.assertEquals(OrderStatus.CANCELLED, response.getStatus());
-        Assertions.assertNull(response.getItems());
-        verify(orderStore).updateOrder(any(Orders.class));
-        verify(orderStore, never()).getOrderItemsByOrderId(orderId);
+        Assertions.assertEquals(OrderStatusType.CANCELLED.name(), response.getStatus());
+        verify(orderRepository).save(any(Orders.class));
     }
 
     @Test
@@ -517,21 +626,22 @@ class OrderServiceTest {
 
         Orders existingOrder = Orders.builder()
                 .orderId(orderId)
-                .status(OrderStatus.PROCESSED)
+                .status(processedStatus)
+                .orderItems(new ArrayList<>())
                 .build();
 
         OrderRequestDto request = OrderRequestDto.builder()
-                .status(OrderStatus.CANCELLED)
+                .status(OrderStatusType.CANCELLED)
                 .build();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
 
         Assertions.assertThrows(
-                IllegalStateException.class,
+                InvalidOrderCancellationException.class,
                 () -> orderService.updateOrderStatus(orderId, request)
         );
 
-        verify(orderStore, never()).updateOrder(any());
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -541,21 +651,22 @@ class OrderServiceTest {
 
         Orders existingOrder = Orders.builder()
                 .orderId(orderId)
-                .status(OrderStatus.PENDING)
+                .status(pendingStatus)
+                .orderItems(new ArrayList<>())
                 .build();
 
         OrderRequestDto request = OrderRequestDto.builder()
-                .status(OrderStatus.PENDING)
+                .status(OrderStatusType.PENDING)
                 .build();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.of(existingOrder));
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
 
         Assertions.assertThrows(
                 InvalidOrderStatusException.class,
                 () -> orderService.updateOrderStatus(orderId, request)
         );
 
-        verify(orderStore, never()).updateOrder(any());
+        verify(orderRepository, never()).save(any());
     }
 
     @Test
@@ -564,35 +675,34 @@ class OrderServiceTest {
         UUID orderId = UUID.randomUUID();
         UUID productId = UUID.randomUUID();
 
-        Orders existingOrder = Orders.builder()
-                .orderId(orderId)
-                .status(OrderStatus.PENDING)
-                .build();
-
-        OrderItem item = OrderItem.builder()
-                .productId(productId)
-                .quantity(10)
-                .build();
-
         Product product = Product.builder()
                 .productId(productId)
                 .stockQuantity(5)
                 .build();
 
-        OrderRequestDto request = OrderRequestDto.builder()
-                .status(OrderStatus.PROCESSED)
+        OrderItem item = OrderItem.builder()
+                .product(product)
+                .quantity(10)
                 .build();
 
-        when(orderStore.getOrder(orderId)).thenReturn(Optional.of(existingOrder));
-        when(orderStore.getOrderItemsByOrderId(orderId)).thenReturn(List.of(item));
-        when(productStore.getProduct(productId)).thenReturn(Optional.of(product));
+        Orders existingOrder = Orders.builder()
+                .orderId(orderId)
+                .status(pendingStatus)
+                .orderItems(List.of(item))
+                .build();
+
+        OrderRequestDto request = OrderRequestDto.builder()
+                .status(OrderStatusType.PROCESSED)
+                .build();
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(existingOrder));
 
         Assertions.assertThrows(
                 InsufficientProductStock.class,
                 () -> orderService.updateOrderStatus(orderId, request)
         );
 
-        verify(productStore, never()).updateProductStocks(anyList(), anyList());
-        verify(orderStore, never()).updateOrder(any());
+        verify(productRepository, never()).save(any());
+        verify(orderRepository, never()).save(any());
     }
 }

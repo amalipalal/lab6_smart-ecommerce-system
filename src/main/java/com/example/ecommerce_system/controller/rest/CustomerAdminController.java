@@ -1,5 +1,6 @@
 package com.example.ecommerce_system.controller.rest;
 
+import com.example.ecommerce_system.config.RequireAdmin;
 import com.example.ecommerce_system.dto.SuccessResponseDto;
 import com.example.ecommerce_system.dto.customer.CustomerRequestDto;
 import com.example.ecommerce_system.dto.customer.CustomerResponseDto;
@@ -22,6 +23,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Validated
 @RequestMapping("/admin/customers")
+@RequireAdmin
 public class CustomerAdminController {
     private final CustomerService customerService;
 

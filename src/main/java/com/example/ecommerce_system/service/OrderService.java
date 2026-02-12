@@ -34,7 +34,6 @@ public class OrderService {
 
     private OrderRepository orderRepository;
     private OrderStatusRepository orderStatusRepository;
-    private OrderItemRepository orderItemRepository;
     private CustomerRepository customerRepository;
     private ProductRepository productRepository;
 
@@ -66,10 +65,8 @@ public class OrderService {
     }
 
     private void saveOrderItems(Orders savedOrder, List<OrderItem> items) {
-        for (OrderItem item : items) {
+        for (OrderItem item : items)
             item.setOrder(savedOrder);
-            orderItemRepository.save(item);
-        }
 
         savedOrder.setOrderItems(items);
     }
