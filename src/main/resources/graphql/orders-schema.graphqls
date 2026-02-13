@@ -108,7 +108,18 @@ type Query {
     getCustomerCartItems: [CartItemResponseDto!]
     getCustomerOrders(limit: Int = 10, offset: Int = 0): [OrderResponseDto!]!
     getProductReviews(productId: ID!, limit: Int = 10, offset: Int = 0): [ReviewResponseDto!]!
-    getAllProductsWithReviews(limit: Int! = 10, offset: Int! = 0, reviewLimit: Int!): [ProductWithReviewsDto!]!
+    getAllProductsWithReviews(
+        limit: Int!
+        offset: Int!
+        reviewLimit: Int! = 10
+        name: String
+        description: String
+        categoryId: ID
+        minPrice: Float
+        maxPrice: Float
+        minStock: Int
+        maxStock: Int
+    ): [ProductWithReviewsDto!]!
 }
 
 type Mutation {

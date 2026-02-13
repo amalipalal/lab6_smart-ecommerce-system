@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
@@ -168,7 +167,7 @@ class ProductServiceCacheIntegrationTest {
     void shouldCacheProductSearchResults() {
         int limit = 5;
         int offset = 0;
-        ProductFilter filter = new ProductFilter("laptop", null);
+        ProductFilter filter = ProductFilter.builder().name("Laptop").build();
         PageRequest pageRequest = PageRequest.of(offset, limit);
         Page<Product> productPage = new PageImpl<>(List.of(testProduct), pageRequest, 1);
 

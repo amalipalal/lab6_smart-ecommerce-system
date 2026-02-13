@@ -314,7 +314,7 @@ class ProductServiceTest {
     @Test
     @DisplayName("Should search products successfully")
     void shouldSearchProductsSuccessfully() {
-        ProductFilter filter = new ProductFilter(null, null);
+        ProductFilter filter = ProductFilter.builder().build();
         Category category = new Category(UUID.randomUUID(), "Electronics", "Desc", Instant.now(), Instant.now());
         Product product = Product.builder()
                 .productId(UUID.randomUUID())
@@ -349,7 +349,7 @@ class ProductServiceTest {
     @Test
     @DisplayName("Should return empty list when no products match filter")
     void shouldReturnEmptyListWhenNoProductsMatchFilter() {
-        ProductFilter filter = new ProductFilter(null, null);
+        ProductFilter filter = ProductFilter.builder().build();
 
         Page<Product> page = new PageImpl<>(List.of());
         when(productRepository.findAll(any(Specification.class), any(PageRequest.class))).thenReturn(page);
@@ -401,7 +401,7 @@ class ProductServiceTest {
     @Test
     @DisplayName("Should handle pagination in search")
     void shouldHandlePaginationInSearch() {
-        ProductFilter filter = new ProductFilter(null, null);
+        ProductFilter filter = ProductFilter.builder().build();
         Category category = new Category(UUID.randomUUID(), "Electronics", "Desc", Instant.now(), Instant.now());
         Product product1 = Product.builder()
                 .productId(UUID.randomUUID())

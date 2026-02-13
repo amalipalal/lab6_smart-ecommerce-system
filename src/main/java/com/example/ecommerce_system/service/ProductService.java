@@ -94,9 +94,13 @@ public class ProductService {
      */
     @Cacheable(value = "paginated", key = "'search_products_' + #filter.toString() + '_' + #limit + '_' + #offset")
     public List<ProductResponseDto> searchProducts(ProductFilter filter, int limit, int offset) {
-        Specification<Product> spec = ProductSpecification.buildSpecification(filter);
-        List<Product> products = productRepository.findAll(spec, PageRequest.of(offset, limit)).getContent();
+        var products = queryRepositoryWithFilter(filter, limit, offset);
         return productMapper.toDTOList(products);
+    }
+
+    private List<Product> queryRepositoryWithFilter(ProductFilter filter, int limit, int offset) {
+        Specification<Product> spec = ProductSpecification.buildSpecification(filter);
+        return productRepository.findAll(spec, PageRequest.of(offset, limit)).getContent();
     }
 
     /**
@@ -134,5 +138,15 @@ public class ProductService {
                 PageRequest.of(offset, limit)
         );
         return productMapper.toProductWithReviewsDTOList(productsPage.getContent());
+    }
+
+    /**
+     * Search for products with reviews using a filter with pagination.
+     * Each product includes a limited number of reviews based on reviewLimit parameter.
+     */
+    @Cacheable(value = "paginated", key = "'search_products_with_reviews_' + #filter.toString() + '_' + #limit + '_' + #offset")
+    public List<ProductWithReviewsDto> searchProductsWithReviews(ProductFilter filter, int limit, int offset) {
+        var products = queryRepositoryWithFilter(filter, limit, offset);
+        return productMapper.toProductWithReviewsDTOList(products);
     }
 }
