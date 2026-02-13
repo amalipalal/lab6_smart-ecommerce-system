@@ -134,7 +134,6 @@ public class OrderService {
 
     /**
      * Retrieves all orders with pagination.
-     * Each order includes its associated items.
      */
     @Cacheable(value = "paginated", key = "'all_orders_' + #limit + '_' + #offset")
     public List<OrderResponseDto> getAllOrders(int limit, int offset) {
@@ -147,6 +146,9 @@ public class OrderService {
         return orderMapper.toDtoList(orders);
     }
 
+    /**
+     * Searches orders using filter criteria with pagination.
+     */
     @Cacheable(value = "paginated", key = "'search_orders_' + #filter.toString() + '_' + #limit + '_' + #offset")
     public List<OrderResponseDto> searchOrders(OrderFilter filter, int limit, int offset) {
         var orders = queryRepositoryWithFilter(filter, limit, offset);
@@ -163,6 +165,9 @@ public class OrderService {
         return orderRepository.findAll(spec, pageRequest).getContent();
     }
 
+    /**
+     * Retrieves all orders for a specific customer with pagination.
+     */
     @Cacheable(value = "paginated", key = "'customer_orders_' + #userId + '_' + #limit + '_' + #offset")
     public List<OrderResponseDto> getCustomerOrders(UUID userId, int limit, int offset) {
         var customer = checkIfCustomerExists(userId);
@@ -174,6 +179,10 @@ public class OrderService {
         return orderMapper.toDtoList(orders);
     }
 
+    /**
+     * Updates order status to either PROCESSED or CANCELLED.
+     * Processing deducts stock quantities, cancellation is only allowed for pending orders.
+     */
     @CacheEvict(value = {"orders", "products", "paginated"}, allEntries = true)
     @Transactional
     public OrderResponseDto updateOrderStatus(UUID orderId, OrderRequestDto request) {
