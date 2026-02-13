@@ -343,6 +343,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Should get customer orders successfully")
+    @SuppressWarnings("unchecked")
     void shouldGetCustomerOrdersSuccessfully() {
         UUID userId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
@@ -369,16 +370,18 @@ class OrderServiceTest {
                 OrderResponseDto.builder().orderId(order.getOrderId()).build()
         );
 
+        Page<Orders> ordersPage = new PageImpl<>(List.of(order), PageRequest.of(10, 5), 0);
+
         when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
-        when(orderRepository.findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class)))
-                .thenReturn(List.of(order));
+        when(orderRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(ordersPage);
         when(orderMapper.toDtoList(anyList())).thenReturn(responseDtos);
 
         List<OrderResponseDto> response = orderService.getCustomerOrders(userId, 10, 0);
 
         Assertions.assertEquals(1, response.size());
         verify(customerRepository).findCustomerByUser_UserId(userId);
-        verify(orderRepository).findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class));
+        verify(orderRepository).findAll(any(Specification.class), any(PageRequest.class));
     }
 
     @Test
@@ -413,6 +416,7 @@ class OrderServiceTest {
 
     @Test
     @DisplayName("Should handle pagination in get customer orders")
+    @SuppressWarnings("unchecked")
     void shouldHandlePaginationInGetCustomerOrders() {
         UUID userId = UUID.randomUUID();
         UUID customerId = UUID.randomUUID();
@@ -426,15 +430,17 @@ class OrderServiceTest {
                 .user(user)
                 .build();
 
+        Page<Orders> emptyPage = new PageImpl<>(List.of());
+
         when(customerRepository.findCustomerByUser_UserId(userId)).thenReturn(Optional.of(customer));
-        when(orderRepository.findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class)))
-                .thenReturn(List.of());
+        when(orderRepository.findAll(any(Specification.class), any(PageRequest.class)))
+                .thenReturn(emptyPage);
         when(orderMapper.toDtoList(anyList())).thenReturn(List.of());
 
         List<OrderResponseDto> response = orderService.getCustomerOrders(userId, 5, 10);
 
         Assertions.assertEquals(0, response.size());
-        verify(orderRepository).findAllByCustomer_CustomerId(eq(customerId), any(PageRequest.class));
+        verify(orderRepository).findAll(any(Specification.class), any(PageRequest.class));
     }
 
     @Test
