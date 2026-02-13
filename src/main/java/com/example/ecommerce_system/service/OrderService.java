@@ -167,15 +167,10 @@ public class OrderService {
     public List<OrderResponseDto> getCustomerOrders(UUID userId, int limit, int offset) {
         var customer = checkIfCustomerExists(userId);
 
-        PageRequest pageRequest = PageRequest.of(
-                offset,
-                limit,
-                Sort.by("orderDate").descending()
-        );
-        List<Orders> orders = orderRepository.findAllByCustomer_CustomerId(
-                customer.getCustomerId(),
-                pageRequest
-        );
+        var filter = OrderFilter.builder()
+                .customerId(customer.getCustomerId())
+                .build();
+        var orders = queryRepositoryWithFilter(filter, limit, offset);
         return orderMapper.toDtoList(orders);
     }
 
