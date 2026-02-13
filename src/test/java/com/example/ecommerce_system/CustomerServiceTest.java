@@ -7,7 +7,7 @@ import com.example.ecommerce_system.model.Customer;
 import com.example.ecommerce_system.model.User;
 import com.example.ecommerce_system.repository.CustomerRepository;
 import com.example.ecommerce_system.service.CustomerService;
-import com.example.ecommerce_system.store.CustomerStore;
+import com.example.ecommerce_system.util.mapper.CustomerMapper;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,10 +30,10 @@ import static org.mockito.Mockito.*;
 class CustomerServiceTest {
 
     @Mock
-    private CustomerStore customerStore;
+    private CustomerRepository customerRepository;
 
     @Mock
-    private CustomerRepository customerRepository;
+    private CustomerMapper customerMapper;
 
     @InjectMocks
     private CustomerService customerService;
@@ -54,8 +54,17 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .phone("+233123456789")
+                .active(true)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(customer));
+        when(customerMapper.toDTO(customer)).thenReturn(responseDto);
 
         CustomerResponseDto response = customerService.getCustomer(id);
 
@@ -63,6 +72,7 @@ class CustomerServiceTest {
         Assertions.assertEquals("John", response.getFirstName());
         Assertions.assertEquals("john@example.com", response.getEmail());
         verify(customerRepository).findById(id);
+        verify(customerMapper).toDTO(customer);
     }
 
     @Test
@@ -103,9 +113,24 @@ class CustomerServiceTest {
                         .active(true)
                         .build()
         );
+        List<CustomerResponseDto> responseDtos = List.of(
+                CustomerResponseDto.builder()
+                        .customerId(customers.get(0).getCustomerId())
+                        .firstName("John")
+                        .lastName("Doe")
+                        .email("john@example.com")
+                        .build(),
+                CustomerResponseDto.builder()
+                        .customerId(customers.get(1).getCustomerId())
+                        .firstName("Jane")
+                        .lastName("Smith")
+                        .email("jane@example.com")
+                        .build()
+        );
 
         Page<Customer> page = new PageImpl<>(customers);
         when(customerRepository.findAll(PageRequest.of(0, 10))).thenReturn(page);
+        when(customerMapper.toDTOList(customers)).thenReturn(responseDtos);
 
         List<CustomerResponseDto> result = customerService.getAllCustomers(10, 0);
 
@@ -113,6 +138,7 @@ class CustomerServiceTest {
         Assertions.assertEquals("John", result.get(0).getFirstName());
         Assertions.assertEquals("Jane", result.get(1).getFirstName());
         verify(customerRepository).findAll(PageRequest.of(0, 10));
+        verify(customerMapper).toDTOList(customers);
     }
 
     @Test
@@ -130,15 +156,25 @@ class CustomerServiceTest {
                         .active(true)
                         .build()
         );
+        List<CustomerResponseDto> responseDtos = List.of(
+                CustomerResponseDto.builder()
+                        .customerId(customers.get(0).getCustomerId())
+                        .firstName("John")
+                        .lastName("Doe")
+                        .email("john@example.com")
+                        .build()
+        );
 
         Page<Customer> page = new PageImpl<>(customers);
         when(customerRepository.searchCustomersByName(query, PageRequest.of(0, 10))).thenReturn(page);
+        when(customerMapper.toDTOList(customers)).thenReturn(responseDtos);
 
         List<CustomerResponseDto> result = customerService.searchCustomers(query, 10, 0);
 
         Assertions.assertEquals(1, result.size());
         Assertions.assertEquals("John", result.get(0).getFirstName());
         verify(customerRepository).searchCustomersByName(query, PageRequest.of(0, 10));
+        verify(customerMapper).toDTOList(customers);
     }
 
     @Test
@@ -148,6 +184,7 @@ class CustomerServiceTest {
 
         Page<Customer> page = new PageImpl<>(List.of());
         when(customerRepository.searchCustomersByName(query, PageRequest.of(0, 10))).thenReturn(page);
+        when(customerMapper.toDTOList(List.of())).thenReturn(List.of());
 
         List<CustomerResponseDto> result = customerService.searchCustomers(query, 10, 0);
 
@@ -170,16 +207,24 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .phone("+233111222333")
+                .active(true)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(customerMapper.toDTO(existing)).thenReturn(responseDto);
 
-        customerService.updateCustomer(id, request);
+        CustomerResponseDto result = customerService.updateCustomer(id, request);
 
+        Assertions.assertEquals("+233111222333", existing.getPhone());
+        Assertions.assertTrue(existing.getActive());
         verify(customerRepository).findById(id);
-        verify(customerRepository).save(argThat(customer ->
-                customer.getPhone().equals("+233111222333") &&
-                        customer.getActive()
-        ));
+        verify(customerMapper).toDTO(existing);
     }
 
     @Test
@@ -197,16 +242,24 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .phone("+233123456789")
+                .active(false)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(customerMapper.toDTO(existing)).thenReturn(responseDto);
 
-        customerService.updateCustomer(id, request);
+        CustomerResponseDto result = customerService.updateCustomer(id, request);
 
+        Assertions.assertEquals("+233123456789", existing.getPhone());
+        Assertions.assertFalse(existing.getActive());
         verify(customerRepository).findById(id);
-        verify(customerRepository).save(argThat(customer ->
-                customer.getPhone().equals("+233123456789") &&
-                        !customer.getActive()
-        ));
+        verify(customerMapper).toDTO(existing);
     }
 
     @Test
@@ -224,16 +277,24 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .phone("+233999888777")
+                .active(false)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(customerMapper.toDTO(existing)).thenReturn(responseDto);
 
-        customerService.updateCustomer(id, request);
+        CustomerResponseDto result = customerService.updateCustomer(id, request);
 
+        Assertions.assertEquals("+233999888777", existing.getPhone());
+        Assertions.assertFalse(existing.getActive());
         verify(customerRepository).findById(id);
-        verify(customerRepository).save(argThat(customer ->
-                customer.getPhone().equals("+233999888777") &&
-                        !customer.getActive()
-        ));
+        verify(customerMapper).toDTO(existing);
     }
 
     @Test
@@ -250,7 +311,7 @@ class CustomerServiceTest {
         );
 
         verify(customerRepository).findById(id);
-        verify(customerRepository, never()).save(any());
+        verify(customerMapper, never()).toDTO(any());
     }
 
     @Test
@@ -268,16 +329,23 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .phone("+233111222333")
+                .active(true)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(customerMapper.toDTO(existing)).thenReturn(responseDto);
 
         customerService.updateCustomer(id, request);
 
-        verify(customerRepository).save(argThat(customer ->
-                customer.getFirstName().equals("John") &&
-                        customer.getLastName().equals("Doe") &&
-                        customer.getActive()
-        ));
+        Assertions.assertEquals("John", existing.getFirstName());
+        Assertions.assertEquals("Doe", existing.getLastName());
+        Assertions.assertTrue(existing.getActive());
     }
 
     @Test
@@ -295,16 +363,23 @@ class CustomerServiceTest {
                 .phone("+233987654321")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("Jane")
+                .lastName("Smith")
+                .email("jane@example.com")
+                .phone("+233987654321")
+                .active(false)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(customerMapper.toDTO(existing)).thenReturn(responseDto);
 
         customerService.updateCustomer(id, request);
 
-        verify(customerRepository).save(argThat(customer ->
-                customer.getFirstName().equals("Jane") &&
-                        customer.getLastName().equals("Smith") &&
-                        customer.getPhone().equals("+233987654321")
-        ));
+        Assertions.assertEquals("Jane", existing.getFirstName());
+        Assertions.assertEquals("Smith", existing.getLastName());
+        Assertions.assertEquals("+233987654321", existing.getPhone());
     }
 
     @Test
@@ -330,9 +405,20 @@ class CustomerServiceTest {
                         .active(true)
                         .build()
         );
+        List<CustomerResponseDto> responseDtos = List.of(
+                CustomerResponseDto.builder()
+                        .customerId(customers.get(0).getCustomerId())
+                        .firstName("Customer1")
+                        .build(),
+                CustomerResponseDto.builder()
+                        .customerId(customers.get(1).getCustomerId())
+                        .firstName("Customer2")
+                        .build()
+        );
 
         Page<Customer> page = new PageImpl<>(customers);
         when(customerRepository.findAll(PageRequest.of(10, 5))).thenReturn(page);
+        when(customerMapper.toDTOList(customers)).thenReturn(responseDtos);
 
         List<CustomerResponseDto> result = customerService.getAllCustomers(5, 10);
 
@@ -355,9 +441,16 @@ class CustomerServiceTest {
                         .active(true)
                         .build()
         );
+        List<CustomerResponseDto> responseDtos = List.of(
+                CustomerResponseDto.builder()
+                        .customerId(customers.get(0).getCustomerId())
+                        .firstName("Customer1")
+                        .build()
+        );
 
         Page<Customer> page = new PageImpl<>(customers);
         when(customerRepository.searchCustomersByName(query, PageRequest.of(10, 5))).thenReturn(page);
+        when(customerMapper.toDTOList(customers)).thenReturn(responseDtos);
 
         List<CustomerResponseDto> result = customerService.searchCustomers(query, 5, 10);
 
@@ -380,14 +473,16 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+        when(customerMapper.toDTO(existing)).thenReturn(responseDto);
 
         customerService.updateCustomer(id, request);
 
-        verify(customerRepository).save(argThat(customer ->
-                customer.getCustomerId().equals(id)
-        ));
+        Assertions.assertEquals(id, existing.getCustomerId());
     }
 
     @Test
@@ -404,8 +499,18 @@ class CustomerServiceTest {
                 .phone("+233123456789")
                 .active(true)
                 .build();
+        CustomerResponseDto responseDto = CustomerResponseDto.builder()
+                .customerId(id)
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .phone("+233123456789")
+                .active(true)
+                .createdAt(createdAt)
+                .build();
 
         when(customerRepository.findById(id)).thenReturn(Optional.of(customer));
+        when(customerMapper.toDTO(customer)).thenReturn(responseDto);
 
         CustomerResponseDto response = customerService.getCustomer(id);
 
