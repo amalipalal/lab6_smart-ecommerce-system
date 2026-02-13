@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
@@ -39,9 +40,29 @@ public class ProductAdminController {
     @GetMapping
     public SuccessResponseDto<List<ProductResponseDto>> getAllProducts(
             @RequestParam @Min(1) int limit,
-            @RequestParam @Min(0) int offset
+            @RequestParam @Min(0) int offset,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String description,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) @PositiveOrZero Double minPrice,
+            @RequestParam(required = false) @PositiveOrZero Double maxPrice,
+            @RequestParam(required = false) @Min(0) Integer minStock,
+            @RequestParam(required = false) @Min(0) Integer maxStock
     ) {
-        List<ProductResponseDto> products = productService.getAllProducts(limit, offset);
+        ProductFilter filter = ProductFilter.builder()
+                .name(name)
+                .description(description)
+                .categoryId(categoryId)
+                .minPrice(minPrice)
+                .maxPrice(maxPrice)
+                .minStock(minStock)
+                .maxStock(maxStock)
+                .build();
+
+        List<ProductResponseDto> products = filter.isEmpty()
+                ? productService.getAllProducts(limit, offset)
+                : productService.searchProducts(filter, limit, offset);
+
         return SuccessResponseHandler.generateSuccessResponse(HttpStatus.OK, products);
     }
 
@@ -69,22 +90,6 @@ public class ProductAdminController {
     ) {
         var product = reviewService.getReviewsByProduct(id, limit, offset);
         return SuccessResponseHandler.generateSuccessResponse(HttpStatus.OK, product);
-    }
-
-    @Operation(summary = "Search products by query and/or category")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Products matching search criteria retrieved")
-    })
-    @GetMapping("/search")
-    public SuccessResponseDto<List<ProductResponseDto>> searchProducts(
-            @RequestParam(required = false) String query,
-            @RequestParam(required = false) UUID category,
-            @RequestParam @Min(1) int limit,
-            @RequestParam @Min(0) int offset
-    ) {
-        ProductFilter filter = new ProductFilter(query, category);
-        List<ProductResponseDto> products = productService.searchProducts(filter, limit, offset);
-        return SuccessResponseHandler.generateSuccessResponse(HttpStatus.OK, products);
     }
 
     @Operation(summary = "Create a new product")
