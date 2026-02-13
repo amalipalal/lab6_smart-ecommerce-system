@@ -1,5 +1,6 @@
 package com.example.ecommerce_system.service;
 
+import com.example.ecommerce_system.dto.orders.OrderFilter;
 import com.example.ecommerce_system.dto.orders.OrderItemDto;
 import com.example.ecommerce_system.dto.orders.OrderRequestDto;
 import com.example.ecommerce_system.dto.orders.OrderResponseDto;
@@ -13,12 +14,14 @@ import com.example.ecommerce_system.exception.product.InsufficientProductStock;
 import com.example.ecommerce_system.exception.product.ProductNotFoundException;
 import com.example.ecommerce_system.model.*;
 import com.example.ecommerce_system.repository.*;
+import com.example.ecommerce_system.util.OrderSpecification;
 import com.example.ecommerce_system.util.mapper.OrderMapper;
 import lombok.AllArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -142,6 +145,22 @@ public class OrderService {
         );
         List<Orders> orders = orderRepository.findAll(pageRequest).getContent();
         return orderMapper.toDtoList(orders);
+    }
+
+    @Cacheable(value = "paginated", key = "'search_orders_' + #filter.toString() + '_' + #limit + '_' + #offset")
+    public List<OrderResponseDto> searchOrders(OrderFilter filter, int limit, int offset) {
+        var orders = queryRepositoryWithFilter(filter, limit, offset);
+        return orderMapper.toDtoList(orders);
+    }
+
+    private List<Orders> queryRepositoryWithFilter(OrderFilter filter, int limit, int offset) {
+        Specification<Orders> spec = OrderSpecification.buildSpecification(filter);
+        PageRequest pageRequest = PageRequest.of(
+                offset,
+                limit,
+                Sort.by("orderDate").descending()
+        );
+        return orderRepository.findAll(spec, pageRequest).getContent();
     }
 
     @Cacheable(value = "paginated", key = "'customer_orders_' + #userId + '_' + #limit + '_' + #offset")
