@@ -28,6 +28,12 @@ public class CacheConfig {
         return createCacheManager(Duration.ofMinutes(15), 2000);
     }
 
+    @Bean
+    @Profile("test")
+    public CacheManager testCacheManager() {
+        return createCacheManager(Duration.ofMinutes(1), 100);
+    }
+
     private CacheManager createCacheManager(Duration baseTtl, int baseSize) {
         SimpleCacheManager cacheManager = new SimpleCacheManager();
 
