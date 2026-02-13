@@ -135,4 +135,15 @@ public class ProductService {
         );
         return productMapper.toProductWithReviewsDTOList(productsPage.getContent());
     }
+
+    /**
+     * Search for products with reviews using a filter with pagination.
+     * Each product includes a limited number of reviews based on reviewLimit parameter.
+     */
+    @Cacheable(value = "paginated", key = "'search_products_with_reviews_' + #filter.toString() + '_' + #limit + '_' + #offset + '_' + #reviewLimit")
+    public List<ProductWithReviewsDto> searchProductsWithReviews(ProductFilter filter, int limit, int offset, int reviewLimit) {
+        Specification<Product> spec = ProductSpecification.buildSpecification(filter);
+        var productsPage = productRepository.findAll(spec, PageRequest.of(offset, limit));
+        return productMapper.toProductWithReviewsDTOList(productsPage.getContent());
+    }
 }
