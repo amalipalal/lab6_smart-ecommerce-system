@@ -111,7 +111,7 @@ type Query {
     getAllProductsWithReviews(
         limit: Int!
         offset: Int!
-        reviewLimit: Int!
+        reviewLimit: Int! = 10
         name: String
         description: String
         categoryId: ID

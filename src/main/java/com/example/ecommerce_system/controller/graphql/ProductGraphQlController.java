@@ -34,6 +34,9 @@ public class ProductGraphQlController {
             @Argument Integer minStock,
             @Argument Integer maxStock
     ) {
+        final int MAX_REVIEW_LIMIT = 50;
+        int effectiveReviewLimit = Math.min(reviewLimit, MAX_REVIEW_LIMIT);
+
         ProductFilter filter = ProductFilter.builder()
                 .name(name)
                 .description(description)
@@ -45,7 +48,7 @@ public class ProductGraphQlController {
                 .build();
 
         return filter.isEmpty()
-                ? productService.getAllProductsWithReviews(limit, offset, reviewLimit)
-                : productService.searchProductsWithReviews(filter, limit, offset, reviewLimit);
+                ? productService.getAllProductsWithReviews(limit, offset, effectiveReviewLimit)
+                : productService.searchProductsWithReviews(filter, limit, offset);
     }
 }
