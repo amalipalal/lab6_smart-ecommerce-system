@@ -1,5 +1,6 @@
 package com.example.ecommerce_system;
 
+import com.example.ecommerce_system.config.CacheConfig;
 import com.example.ecommerce_system.dto.product.ProductFilter;
 import com.example.ecommerce_system.dto.product.ProductRequestDto;
 import com.example.ecommerce_system.dto.product.ProductResponseDto;
@@ -14,15 +15,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.cache.CacheManager;
-import org.springframework.cache.annotation.EnableCaching;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -39,55 +39,22 @@ import static org.mockito.Mockito.*;
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = {
         ProductService.class,
-        ProductServiceCacheIntegrationTest.TestCacheConfig.class
+        CacheConfig.class
 })
+@ActiveProfiles("test")
 @TestPropertySource(properties = {
         "spring.cache.type=caffeine",
         "spring.cache.caffeine.spec=maximumSize=100,expireAfterWrite=1m"
 })
 class ProductServiceCacheIntegrationTest {
 
-    @TestConfiguration
-    @EnableCaching
-    static class TestCacheConfig {
-
-        @Bean
-        public CacheManager cacheManager() {
-            org.springframework.cache.caffeine.CaffeineCacheManager cacheManager =
-                new org.springframework.cache.caffeine.CaffeineCacheManager();
-            cacheManager.setCacheNames(java.util.Arrays.asList(
-                "products", "paginated", "categories", "users", "customers",
-                "orders", "order_items", "carts", "reviews"
-            ));
-            return cacheManager;
-        }
-
-        @Bean
-        @Primary
-        public ProductRepository productRepository() {
-            return mock(ProductRepository.class);
-        }
-
-        @Bean
-        @Primary
-        public CategoryRepository categoryRepository() {
-            return mock(CategoryRepository.class);
-        }
-
-        @Bean
-        @Primary
-        public ProductMapper productMapper() {
-            return mock(ProductMapper.class);
-        }
-    }
-
-    @Autowired
+    @MockitoBean
     private ProductRepository productRepository;
 
-    @Autowired
+    @MockitoBean
     private CategoryRepository categoryRepository;
 
-    @Autowired
+    @MockitoBean
     private ProductMapper productMapper;
 
     @Autowired
